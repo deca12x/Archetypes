@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { GridEngine } from "grid-engine";
 import { WorldScene } from "../scenes/WorldScene";
 
 export const gameConfig: Phaser.Types.Core.GameConfig = {
@@ -13,6 +14,15 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
       gravity: { y: 0 },
       debug: false,
     },
+  },
+  plugins: {
+    scene: [
+      {
+        key: "gridEngine",
+        plugin: GridEngine,
+        mapping: "gridEngine",
+      },
+    ],
   },
   scene: [WorldScene],
 };

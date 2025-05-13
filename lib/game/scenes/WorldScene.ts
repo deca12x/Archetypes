@@ -24,12 +24,20 @@ export class WorldScene extends Phaser.Scene {
     const map = this.make.tilemap({ key: "map" });
     const tileset = map.addTilesetImage("world-tileset", "tiles");
 
+    // Only proceed if tileset is loaded properly
+    if (!tileset) {
+      console.error("Failed to load tileset");
+      return;
+    }
+
     // Create layers
     const groundLayer = map.createLayer("Ground", tileset);
     const obstaclesLayer = map.createLayer("Obstacles", tileset);
 
-    // Set collisions
-    obstaclesLayer.setCollisionByProperty({ collides: true });
+    // Set collisions (only if layer exists)
+    if (obstaclesLayer) {
+      obstaclesLayer.setCollisionByProperty({ collides: true });
+    }
 
     // Create player
     this.player = this.add.sprite(400, 300, "player");
@@ -55,11 +63,12 @@ export class WorldScene extends Phaser.Scene {
       ],
     };
 
-    // @ts-ignore - Add GridEngine plugin
+    // Initialize GridEngine plugin
     this.gridEngine.create(map, gridEngineConfig);
 
     // Setup keyboard input
-    this.cursors = this.input.keyboard.createCursorKeys();
+    this.cursors =
+      this.input?.keyboard?.createCursorKeys() as Phaser.Types.Input.Keyboard.CursorKeys;
 
     // Set camera to follow player
     this.cameras.main.startFollow(this.player);

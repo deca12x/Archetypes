@@ -13,18 +13,19 @@
     "@thirdweb-dev/chains": "^0.1.120",
     "@thirdweb-dev/react": "^4.4.7",
     "@thirdweb-dev/sdk": "^4.0.23",
-    "grid-engine": "^2.37.0",
+    "grid-engine": "^2.48.0",
     "lucide-react": "^0.483.0",
     "next": "14.2.0",
     "nuqs": "^2.4.1",
-    "phaser": "^3.60.0",
+    "phaser": "~3.88.2",
     "phaser3-rex-plugins": "^1.80.1",
     "pino-pretty": "^13.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "vercel": "^41.4.1",
     "viem": "^2.23.13",
-    "wagmi": "^2.14.15"
+    "wagmi": "^2.14.15",
+    "zustand": "^5.0.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

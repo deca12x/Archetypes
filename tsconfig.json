@@ -21,14 +21,14 @@
       "@/*": ["./*"]
     },
     "target": "ES2017",
-    "typeRoots": ["./node_modules/@types", "./lib/types"]
+    "typeRoots": ["./node_modules/@types", "lib/game/types"]
   },
   "include": [
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "lib/types/**/*.d.ts"
+    "lib/game/types/**/*.d.ts"
   ],
   "exclude": ["node_modules"]
 }

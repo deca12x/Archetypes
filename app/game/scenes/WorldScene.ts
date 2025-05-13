@@ -73,7 +73,7 @@ export default class WorldScene extends Scene {
   // Initialize all required properties
   gridEngine!: GridEngine; // Using definite assignment assertion
   player!: GameObjects.Sprite;
-  speed: number = 3;
+  speed: number = 10;
   tilemap!: Tilemaps.Tilemap;
   map: Maps = Maps.PALLET_TOWN;
   daylightOverlay!: GameObjects.Graphics;
@@ -234,7 +234,7 @@ export default class WorldScene extends Scene {
 
   initializeCamera(): void {
     this.cameras.main.roundPixels = true;
-    this.cameras.main.setZoom(1.5);
+    this.cameras.main.setZoom(1);
     this.cameras.main.setBounds(
       0,
       0,

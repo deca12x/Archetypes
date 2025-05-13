@@ -9,7 +9,7 @@ const GameComponent = dynamic(() => import("./GameComponent"), {
 
 export default function GamePage() {
   return (
-    <div className="w-full h-screen bg-black">
+    <div className="w-full h-screen bg-black overflow-hidden">
       <GameComponent />
     </div>
   );

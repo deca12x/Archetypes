@@ -4,18 +4,29 @@ import { Maps, Sprites, Tilesets } from "../../../lib/game/constants/assets";
 import { UIEvents } from "../../../lib/game/constants/events";
 import { dispatch } from "../../../lib/game/utils/ui";
 import { useUIStore } from "../../../lib/game/stores/ui";
-import Loading from "../ui/Loading";
+import { useSocket } from "@/lib/hooks/useSocket";
 
 export default class BootScene extends Scene {
   text!: GameObjects.Text;
+  private socket: any = null;
 
   constructor() {
     super("Boot");
   }
 
+  init() {
+    // Initialize socket connection
+    // This gets a reference to our socket instance from the hook
+    if (typeof window !== "undefined") {
+      // We need to get the socket somehow - one approach is to make it a global in the client browser
+      this.socket = (window as any).__gameSocket;
+    }
+  }
+
   launchGame(): void {
     this.sound.pauseOnBlur = false;
-    this.scene.switch("World");
+    // Pass socket to WorldScene
+    this.scene.start("WorldScene", { socket: this.socket });
   }
 
   preload(): void {
@@ -72,4 +83,6 @@ export default class BootScene extends Scene {
       });
     });
   }
+
+  // [Rest of the code remains the same]
 }

@@ -4,6 +4,7 @@ import { useAddress, useDisconnect } from "@thirdweb-dev/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
+import JoinRoom from "@/components/providers/JoinRoom";
 
 export default function Home() {
   const address = useAddress();
@@ -30,12 +31,7 @@ export default function Home() {
         Archetypes of the Collective Unconscious
       </div>
 
-      <button
-        onClick={() => router.push("/game")}
-        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-      >
-        Play
-      </button>
+      <JoinRoom />
 
       <button
         onClick={disconnect}

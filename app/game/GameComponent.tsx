@@ -7,14 +7,29 @@ import BootScene from "./scenes/BootScene";
 import WorldScene from "./scenes/WorldScene";
 import { useUIStore } from "../../lib/game/stores/ui";
 import Loading from "./ui/Loading";
+import { useSocket } from "@/lib/hooks/useSocket";
 
 const GameComponent = () => {
   const [game, setGame] = useState<PhaserGame>();
   const { loading } = useUIStore();
   const gameContainerRef = useRef<HTMLDivElement>(null);
+  const { socket, isConnected } = useSocket();
 
   useEffect(() => {
-    if (!gameContainerRef.current) return;
+    // Make the socket globally available to the Phaser game
+    if (socket && typeof window !== "undefined") {
+      (window as any).__gameSocket = socket;
+
+      // Also store game action for the Phaser scenes to access
+      if (localStorage.getItem("gameAction")) {
+        (window as any).__gameAction = localStorage.getItem("gameAction");
+        (window as any).__roomCode = localStorage.getItem("roomCode") || null;
+      }
+    }
+  }, [socket]);
+
+  useEffect(() => {
+    if (!gameContainerRef.current || !socket) return;
 
     // Make sure any previous instance is destroyed
     if (game) {
@@ -55,11 +70,16 @@ const GameComponent = () => {
     return () => {
       newGame.destroy(true);
     };
-  }, []);
+  }, [gameContainerRef.current, socket]); // Add socket as a dependency
 
   return (
     <>
       {loading && <Loading />}
+      {!isConnected && (
+        <div className="absolute top-0 left-0 bg-red-500 text-white p-2">
+          Not connected to server
+        </div>
+      )}
       <div
         id="game"
         ref={gameContainerRef}

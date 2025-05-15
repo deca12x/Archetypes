@@ -119,6 +119,8 @@ export default class WorldScene extends Scene {
   daylightOverlay!: GameObjects.Graphics;
   cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   enterKey!: Phaser.Input.Keyboard.Key;
+  xKey!: Phaser.Input.Keyboard.Key;
+  attackText!: Phaser.GameObjects.Text;
 
   // Socket.io properties
   private socket: Socket | null = null;
@@ -126,6 +128,9 @@ export default class WorldScene extends Scene {
   private roomId: string | null = null;
   private remotePlayers: Map<string, Phaser.GameObjects.Sprite> = new Map();
   private roomCodeText!: Phaser.GameObjects.Text;
+
+  private currentCharacter: string = Sprites.WIZARD;
+  private uiScene!: Scene;
 
   constructor() {
     super("WorldScene");
@@ -154,6 +159,16 @@ export default class WorldScene extends Scene {
     this.initializeGrid();
     this.listenKeyboardControl();
 
+    // Initialize attack text (initially hidden)
+    this.attackText = this.add.text(0, 0, "ATTACK!", {
+      fontSize: '24px',
+      color: '#ff0000',
+      stroke: '#000000',
+      strokeThickness: 4
+    });
+    this.attackText.setVisible(false);
+    this.attackText.setDepth(1000);
+
     // Add room code display for multiplayer
     this.roomCodeText = this.add
       .text(16, 16, "Room: Connecting...", {
@@ -164,6 +179,15 @@ export default class WorldScene extends Scene {
       })
       .setScrollFactor(0)
       .setDepth(1000);
+
+    // Wait for UI scene to be ready
+    this.time.delayedCall(100, () => {
+      const uiScene = this.scene.get("UI");
+      if (uiScene) {
+        this.uiScene = uiScene;
+        this.uiScene.events.on('characterSwitched', this.handleCharacterSwitch, this);
+      }
+    });
 
     // Fix positionChangeFinished subscription and add socket event
     // @ts-ignore - We need to ignore this since the types are not correctly exported
@@ -247,6 +271,11 @@ export default class WorldScene extends Scene {
     }
 
     this.listenMoves();
+
+    // Check for attack input
+    if (Phaser.Input.Keyboard.JustDown(this.xKey)) {
+      this.showAttackMessage();
+    }
   }
 
   listenMoves(): void {
@@ -312,6 +341,7 @@ export default class WorldScene extends Scene {
   initializePlayer() {
     this.cursors = this.input?.keyboard?.createCursorKeys() as Phaser.Types.Input.Keyboard.CursorKeys;
     this.enterKey = this.input?.keyboard?.addKey("ENTER") as Phaser.Input.Keyboard.Key;
+    this.xKey = this.input?.keyboard?.addKey("X") as Phaser.Input.Keyboard.Key;
 
     this.player = this.add.sprite(0, 0, Sprites.PLAYER);
     this.player.setOrigin(0.5, 0.5);
@@ -617,5 +647,68 @@ export default class WorldScene extends Scene {
         movement: { x, y, direction },
       });
     }
+  }
+
+  private handleCharacterSwitch(data: { previousCharacter: string; newCharacter: string }) {
+    console.log(`Switching character from ${data.previousCharacter} to ${data.newCharacter}`);
+    
+    // Update player sprite
+    this.player.setTexture(data.newCharacter);
+    this.currentCharacter = data.newCharacter;
+
+    // Update grid engine character
+    if (this.gridEngine) {
+      const position = this.gridEngine.getPosition(Sprites.PLAYER);
+      const direction = this.gridEngine.getFacingDirection(Sprites.PLAYER);
+      
+      // Remove old character
+      this.gridEngine.removeCharacter(Sprites.PLAYER);
+      
+      // Add new character with same position and direction
+      this.gridEngine.addCharacter({
+        id: Sprites.PLAYER,
+        sprite: this.player,
+        startPosition: position,
+        facingDirection: direction,
+        walkingAnimationMapping: {
+          up: {
+            leftFoot: 9,
+            standing: 10,
+            rightFoot: 11,
+          },
+          down: {
+            leftFoot: 0,
+            standing: 1,
+            rightFoot: 2,
+          },
+          left: {
+            leftFoot: 3,
+            standing: 4,
+            rightFoot: 5,
+          },
+          right: {
+            leftFoot: 6,
+            standing: 7,
+            rightFoot: 8,
+          },
+        },
+        speed: this.speed,
+      });
+    }
+  }
+
+  private showAttackMessage() {
+    const position = this.gridEngine.getPosition(Sprites.PLAYER);
+    const x = position.x * 32;
+    const y = position.y * 32 - 20; // Position above the character
+
+    // Show attack text
+    this.attackText.setPosition(x, y);
+    this.attackText.setVisible(true);
+
+    // Hide after 1 second
+    this.time.delayedCall(1000, () => {
+      this.attackText.setVisible(false);
+    });
   }
 }

@@ -25,7 +25,8 @@ export default class BootScene extends Scene {
 
   launchGame(): void {
     this.sound.pauseOnBlur = false;
-    // Pass socket to WorldScene
+    // Start UI scene first, then World scene
+    this.scene.start("UI");
     this.scene.start("WorldScene", { socket: this.socket });
   }
 

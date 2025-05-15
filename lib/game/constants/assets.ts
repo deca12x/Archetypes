@@ -1,10 +1,21 @@
+import { CharacterSounds } from './sounds';
+
 export enum Sprites {
   PLAYER = "player",
-  BICYCLE = "bicycle",
-  OAK = "oak",
-  SCIENTIST = "scientist",
-  BLUE = "blue",
+  WIZARD = "wizard_final_spritesheet",
+  EXPLORER = "explorer_spritesheet_final",
+  RULER = "ruler_spritesheet",
+  HERO = "hero_attack_spritesheet",
+  CLOUD = "cloud"
 }
+
+// Array of playable character sprites in order of appearance
+export const PLAYABLE_CHARACTERS = [
+  "wizard_final_spritesheet",    // Wizard
+  "explorer_spritesheet_final",  // Explorer
+  "ruler_spritesheet",          // Ruler
+  "hero_attack_spritesheet"     // Hero
+] as const;
 
 export enum Tilesets {
   GROUNDS = "grounds",
@@ -67,3 +78,23 @@ export enum Audios {
   BATTLE = "battle",
   PALLET_TOWN = "pallet-town",
 }
+
+// Map character sprites to their corresponding sound keys
+export const CHARACTER_SOUND_MAP: Record<string, { walk: string; attack: string }> = {
+  'wizard_final_spritesheet': {
+    walk: CharacterSounds.WIZARD_WALK,
+    attack: CharacterSounds.WIZARD_ATTACK
+  },
+  'explorer_spritesheet_final': {
+    walk: CharacterSounds.EXPLORER_WALK,
+    attack: CharacterSounds.EXPLORER_ATTACK
+  },
+  'ruler_spritesheet': {
+    walk: CharacterSounds.RULER_WALK,
+    attack: CharacterSounds.RULER_ATTACK
+  },
+  'hero_attack_spritesheet': {
+    walk: CharacterSounds.HERO_WALK,
+    attack: CharacterSounds.HERO_ATTACK
+  }
+};

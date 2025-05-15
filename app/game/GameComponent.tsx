@@ -6,6 +6,7 @@ import GridEngine from "grid-engine";
 import BootScene from "./scenes/BootScene";
 import WorldScene from "./scenes/WorldScene";
 import { useUIStore } from "../../lib/game/stores/ui";
+import { useCharacterStore } from "@/lib/game/stores/characterStore";
 import Loading from "./ui/Loading";
 import { useSocket } from "@/lib/hooks/useSocket";
 
@@ -14,6 +15,14 @@ const GameComponent = () => {
   const { loading } = useUIStore();
   const gameContainerRef = useRef<HTMLDivElement>(null);
   const { socket, isConnected } = useSocket();
+
+  // Initialize character store
+  useEffect(() => {
+    console.log('Initializing character store in GameComponent');
+    const store = useCharacterStore.getState();
+    store.initializeCharacters();
+    store.setCurrentCharacter('wizard');
+  }, []);
 
   useEffect(() => {
     // Make the socket globally available to the Phaser game

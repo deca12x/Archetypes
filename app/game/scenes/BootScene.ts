@@ -78,10 +78,18 @@ export default class BootScene extends Scene {
     const sprites = Object.values(Sprites);
 
     sprites.forEach((sprite) => {
-      this.load.spritesheet(sprite, `assets/images/characters/${sprite}.png`, {
-        frameWidth: PLAYER_SIZE.width,
-        frameHeight: PLAYER_SIZE.height,
-      });
+      if (sprite === Sprites.CLOUD) {
+        // Load cloud sprite with same dimensions as player
+        this.load.spritesheet(sprite, `assets/images/characters/${sprite}.png`, {
+          frameWidth: PLAYER_SIZE.width,
+          frameHeight: PLAYER_SIZE.height,
+        });
+      } else {
+        this.load.spritesheet(sprite, `assets/images/characters/${sprite}.png`, {
+          frameWidth: PLAYER_SIZE.width,
+          frameHeight: PLAYER_SIZE.height,
+        });
+      }
     });
   }
 
@@ -90,6 +98,9 @@ export default class BootScene extends Scene {
     this.createWalkingAnimation(Sprites.WIZARD, 12); // Wizard has 12 frames
     this.createWalkingAnimation(Sprites.RULER, 12); // Ruler has 12 frames
     this.createWalkingAnimation(Sprites.HERO, 12); // Hero has 12 frames
+
+    // Create cloud animation
+    this.createCloudAnimation();
   }
 
   createWalkingAnimation(spriteKey: string, frameCount: number): void {
@@ -99,6 +110,21 @@ export default class BootScene extends Scene {
       frames: this.anims.generateFrameNumbers(spriteKey, { start: 0, end: frameCount - 1 }),
       frameRate: 10,
       repeat: -1
+    });
+  }
+
+  createCloudAnimation(): void {
+    console.log('Creating cloud animation');
+    this.anims.create({
+      key: 'cloud_puff',
+      frames: this.anims.generateFrameNumbers(Sprites.CLOUD, { 
+        start: 0, 
+        end: 3,
+        zeroPad: 1 // This ensures proper frame sequencing
+      }),
+      frameRate: 8,
+      repeat: 0,
+      hideOnComplete: true
     });
   }
 

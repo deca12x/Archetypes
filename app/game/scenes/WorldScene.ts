@@ -6,6 +6,7 @@ import {
   Layers,
   Tilesets,
   Maps,
+  PLAYABLE_CHARACTERS
 } from "../../../lib/game/constants/assets";
 import {
   getStartPosition,
@@ -129,8 +130,11 @@ export default class WorldScene extends Scene {
   private remotePlayers: Map<string, Phaser.GameObjects.Sprite> = new Map();
   private roomCodeText!: Phaser.GameObjects.Text;
 
-  private currentCharacter: string = Sprites.WIZARD;
+  private currentCharacter: typeof PLAYABLE_CHARACTERS[number] = PLAYABLE_CHARACTERS[0];
   private uiScene!: Scene;
+  private pKey!: Phaser.Input.Keyboard.Key;
+  private cloudSprite!: Phaser.GameObjects.Sprite;
+  private isSwapping: boolean = false;
 
   constructor() {
     super("WorldScene");
@@ -180,12 +184,23 @@ export default class WorldScene extends Scene {
       .setScrollFactor(0)
       .setDepth(1000);
 
+    // Initialize cloud sprite (initially hidden)
+    this.cloudSprite = this.add.sprite(0, 0, Sprites.CLOUD);
+    this.cloudSprite.setVisible(false);
+    this.cloudSprite.setDepth(999);
+    this.cloudSprite.setScale(1.5);
+    this.cloudSprite.setOrigin(0.5, 0.5);
+
     // Wait for UI scene to be ready
     this.time.delayedCall(100, () => {
-      const uiScene = this.scene.get("UI");
-      if (uiScene) {
-        this.uiScene = uiScene;
-        this.uiScene.events.on('characterSwitched', this.handleCharacterSwitch, this);
+      this.uiScene = this.scene.get('UIScene');
+      if (this.uiScene) {
+        // Listen for character change events
+        this.uiScene.events.on('characterChanged', this.handleCharacterChange, this);
+        // Set initial character to first in the array
+        this.currentCharacter = PLAYABLE_CHARACTERS[0];
+        this.player.setTexture(PLAYABLE_CHARACTERS[0]);
+        console.log('WorldScene: Initial character set to:', PLAYABLE_CHARACTERS[0]);
       }
     });
 
@@ -212,7 +227,7 @@ export default class WorldScene extends Scene {
   initializeMultiplayer() {
     if (this.socket) {
       const username = "Player" + Math.floor(Math.random() * 1000);
-      const sprite = Sprites.PLAYER;
+      const sprite = PLAYABLE_CHARACTERS[0];
 
       if (typeof window !== "undefined") {
         const gameAction = (window as any).__gameAction;
@@ -275,6 +290,11 @@ export default class WorldScene extends Scene {
     // Check for attack input
     if (Phaser.Input.Keyboard.JustDown(this.xKey)) {
       this.showAttackMessage();
+    }
+
+    // Check for character swap input
+    if (Phaser.Input.Keyboard.JustDown(this.pKey) && !this.isSwapping) {
+      this.startCharacterSwap();
     }
   }
 
@@ -342,6 +362,7 @@ export default class WorldScene extends Scene {
     this.cursors = this.input?.keyboard?.createCursorKeys() as Phaser.Types.Input.Keyboard.CursorKeys;
     this.enterKey = this.input?.keyboard?.addKey("ENTER") as Phaser.Input.Keyboard.Key;
     this.xKey = this.input?.keyboard?.addKey("X") as Phaser.Input.Keyboard.Key;
+    this.pKey = this.input?.keyboard?.addKey("P") as Phaser.Input.Keyboard.Key;
 
     this.player = this.add.sprite(0, 0, Sprites.PLAYER);
     this.player.setOrigin(0.5, 0.5);
@@ -649,12 +670,15 @@ export default class WorldScene extends Scene {
     }
   }
 
-  private handleCharacterSwitch(data: { previousCharacter: string; newCharacter: string }) {
-    console.log(`Switching character from ${data.previousCharacter} to ${data.newCharacter}`);
+  private handleCharacterChange(newCharacter: typeof PLAYABLE_CHARACTERS[number]) {
+    console.log('WorldScene: Changing character to:', newCharacter);
     
     // Update player sprite
-    this.player.setTexture(data.newCharacter);
-    this.currentCharacter = data.newCharacter;
+    this.player.setTexture(newCharacter);
+    console.log('WorldScene: Player texture updated to:', newCharacter);
+    
+    // Update current character
+    this.currentCharacter = newCharacter;
 
     // Update grid engine character
     if (this.gridEngine) {
@@ -694,16 +718,74 @@ export default class WorldScene extends Scene {
         },
         speed: this.speed,
       });
+
+      // Ensure the player is visible after the swap
+      this.player.setVisible(true);
+      console.log('WorldScene: Grid engine updated with new character');
     }
   }
 
-  private showAttackMessage() {
-    const position = this.gridEngine.getPosition(Sprites.PLAYER);
-    const x = position.x * 32;
-    const y = position.y * 32 - 20; // Position above the character
+  private startCharacterSwap() {
+    if (this.isSwapping) return;
 
-    // Show attack text
-    this.attackText.setPosition(x, y);
+    this.isSwapping = true;
+    console.log('WorldScene: Starting character swap, current character:', this.currentCharacter);
+    
+    // Get the exact position where the player is rendered
+    const playerPos = this.getCharacterScreenPosition();
+    
+    // Position cloud sprite exactly where the player is
+    this.cloudSprite.setPosition(playerPos.x, playerPos.y);
+    this.cloudSprite.setVisible(true);
+    this.cloudSprite.setScale(1.5);
+    this.cloudSprite.setOrigin(0.5, 0.5);
+
+    // Hide player during swap
+    this.player.setVisible(false);
+
+    // Play cloud animation
+    this.cloudSprite.play('cloud_puff');
+
+    // When cloud animation completes, switch character
+    this.cloudSprite.once('animationcomplete', () => {
+      console.log('WorldScene: Cloud animation complete, switching character');
+      
+      // Get next character index
+      const currentIndex = PLAYABLE_CHARACTERS.indexOf(this.currentCharacter);
+      const nextIndex = (currentIndex + 1) % PLAYABLE_CHARACTERS.length;
+      const nextCharacter = PLAYABLE_CHARACTERS[nextIndex];
+      
+      console.log('WorldScene: Switching from', this.currentCharacter, 'to', nextCharacter);
+      
+      // Update character
+      this.handleCharacterChange(nextCharacter);
+      
+      // Show player
+      this.player.setVisible(true);
+      this.isSwapping = false;
+    });
+  }
+
+  private getCharacterScreenPosition() {
+    // Get the character's position in the grid
+    const position = this.gridEngine.getPosition(Sprites.PLAYER);
+    
+    // Get the actual screen position of the player sprite
+    const playerX = this.player.x;
+    const playerY = this.player.y;
+    
+    return {
+      x: playerX,
+      y: playerY
+    };
+  }
+
+  private showAttackMessage() {
+    // Get the exact position where the player is rendered
+    const playerPos = this.getCharacterScreenPosition();
+    
+    // Show attack text above the character
+    this.attackText.setPosition(playerPos.x, playerPos.y - 20);
     this.attackText.setVisible(true);
 
     // Hide after 1 second

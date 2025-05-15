@@ -1,13 +1,17 @@
 export enum Sprites {
-  PLAYER = "player",
-  BICYCLE = "bicycle",
-  OAK = "oak",
-  SCIENTIST = "scientist",
-  BLUE = "blue",
+  PLAYER = "wizard_final_spritesheet",  
   WIZARD = "wizard_final_spritesheet",
   RULER = "explorer_spritesheet_final",
-  HERO = "reaper-fullspritesheet"
+  HERO = "ruler_spritesheet",
+  CLOUD = "clouds_spritesheet"
 }
+
+// Array of playable character sprites in order of appearance
+export const PLAYABLE_CHARACTERS = [
+  "wizard_final_spritesheet",    // Wizard
+  "explorer_spritesheet_final",  // Explorer
+  "ruler_spritesheet"           // Ruler
+] as const;
 
 export enum Tilesets {
   GROUNDS = "grounds",

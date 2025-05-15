@@ -1,11 +1,10 @@
 import { Scene, GameObjects } from "phaser";
-import { Sprites } from "../../../lib/game/constants/assets";
+import { PLAYABLE_CHARACTERS } from "../../../lib/game/constants/assets";
 
 interface CharacterSlot {
   sprite: GameObjects.Sprite;
   background: GameObjects.Rectangle;
   isActive: boolean;
-  isDead: boolean;
 }
 
 export default class UIScene extends Scene {
@@ -16,10 +15,10 @@ export default class UIScene extends Scene {
   private readonly SLOT_BACKGROUND_COLOR = 0x000000;
   private readonly SLOT_BACKGROUND_ALPHA = 0.7;
   private readonly ACTIVE_SLOT_COLOR = 0x00ff00;
-  private readonly DEAD_SLOT_COLOR = 0xff0000;
+  private characterWindow!: Phaser.GameObjects.Container;
 
   constructor() {
-    super("UI");
+    super("UIScene");
   }
 
   create() {
@@ -27,25 +26,43 @@ export default class UIScene extends Scene {
     this.cameras.main.setScrollFactor(0);
     this.cameras.main.setBackgroundColor('#00000000');
 
-    // Create character slots
-    this.createCharacterSlots();
-    this.setupKeyboardControls();
+    // Create character selection window
+    this.createCharacterWindow();
+
+    // Set up P key for character swapping
+    this.input.keyboard.on('keydown-P', () => {
+      this.handleCharacterSwap();
+    });
 
     // Emit ready event
     this.events.emit('ready');
   }
 
-  private createCharacterSlots() {
+  private createCharacterWindow() {
     const startX = this.cameras.main.width - (this.SLOT_SIZE * 3 + this.SLOT_PADDING * 2);
     const startY = 20;
 
-    // Create three character slots
-    for (let i = 0; i < 3; i++) {
-      const x = startX + (this.SLOT_SIZE + this.SLOT_PADDING) * i;
-      const y = startY;
+    // Create container for the character window
+    this.characterWindow = this.add.container(startX, startY);
 
-      // Create background
-      const background = this.add.rectangle(
+    // Create background for the window
+    const background = this.add.rectangle(
+      0,
+      0,
+      this.SLOT_SIZE * 3 + this.SLOT_PADDING * 2,
+      this.SLOT_SIZE + this.SLOT_PADDING * 2,
+      this.SLOT_BACKGROUND_COLOR,
+      this.SLOT_BACKGROUND_ALPHA
+    );
+    this.characterWindow.add(background);
+
+    // Create character slots
+    for (let i = 0; i < PLAYABLE_CHARACTERS.length; i++) {
+      const x = (this.SLOT_SIZE + this.SLOT_PADDING) * i;
+      const y = 0;
+
+      // Create slot background
+      const slotBackground = this.add.rectangle(
         x + this.SLOT_SIZE / 2,
         y + this.SLOT_SIZE / 2,
         this.SLOT_SIZE,
@@ -53,53 +70,43 @@ export default class UIScene extends Scene {
         this.SLOT_BACKGROUND_COLOR,
         this.SLOT_BACKGROUND_ALPHA
       );
+      slotBackground.setStrokeStyle(2, 0xffffff);
 
       // Create character sprite
       const sprite = this.add.sprite(
         x + this.SLOT_SIZE / 2,
         y + this.SLOT_SIZE / 2,
-        this.getCharacterSprite(i)
+        PLAYABLE_CHARACTERS[i]
       );
       sprite.setScale(0.5);
 
       this.characterSlots.push({
         sprite,
-        background,
-        isActive: i === 0,
-        isDead: false
+        background: slotBackground,
+        isActive: i === 0
       });
+
+      this.characterWindow.add(slotBackground);
+      this.characterWindow.add(sprite);
     }
 
     // Set initial active character
     this.updateActiveCharacter(0);
   }
 
-  private getCharacterSprite(index: number): string {
-    const characters = [Sprites.WIZARD, Sprites.RULER, Sprites.HERO];
-    return characters[index] || Sprites.PLAYER;
-  }
-
-  private setupKeyboardControls() {
-    // Add number key listeners for character switching
-    this.input.keyboard.on('keydown-ONE', () => this.switchCharacter(0));
-    this.input.keyboard.on('keydown-TWO', () => this.switchCharacter(1));
-    this.input.keyboard.on('keydown-THREE', () => this.switchCharacter(2));
-  }
-
-  private switchCharacter(index: number) {
-    if (index === this.currentCharacterIndex || this.characterSlots[index].isDead) {
-      return;
-    }
-
-    this.updateActiveCharacter(index);
+  private handleCharacterSwap() {
+    console.log('UIScene: Current character index:', this.currentCharacterIndex);
     
-    // Emit event to WorldScene to handle character switch
-    this.events.emit('characterSwitched', {
-      previousCharacter: this.getCharacterSprite(this.currentCharacterIndex),
-      newCharacter: this.getCharacterSprite(index)
-    });
-
-    this.currentCharacterIndex = index;
+    // Cycle through characters
+    this.currentCharacterIndex = (this.currentCharacterIndex + 1) % PLAYABLE_CHARACTERS.length;
+    const nextCharacter = PLAYABLE_CHARACTERS[this.currentCharacterIndex];
+    console.log('UIScene: Switching to character:', nextCharacter);
+    
+    // Update active character slot
+    this.updateActiveCharacter(this.currentCharacterIndex);
+    
+    // Emit event to WorldScene
+    this.events.emit('characterChanged', nextCharacter);
   }
 
   private updateActiveCharacter(index: number) {
@@ -107,13 +114,5 @@ export default class UIScene extends Scene {
       slot.isActive = i === index;
       slot.background.setStrokeStyle(2, slot.isActive ? this.ACTIVE_SLOT_COLOR : 0xffffff);
     });
-  }
-
-  public setCharacterDead(index: number, isDead: boolean) {
-    if (this.characterSlots[index]) {
-      this.characterSlots[index].isDead = isDead;
-      this.characterSlots[index].sprite.setAlpha(isDead ? 0.5 : 1);
-      this.characterSlots[index].background.setStrokeStyle(2, isDead ? this.DEAD_SLOT_COLOR : 0xffffff);
-    }
   }
 } 

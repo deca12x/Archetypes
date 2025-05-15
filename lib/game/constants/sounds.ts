@@ -1,15 +1,19 @@
-export const CharacterSounds = {
-  WIZARD_WALK: 'wizard_walk',
-  WIZARD_ATTACK: 'wizard_attack',
-  EXPLORER_WALK: 'explorer_walk',
-  EXPLORER_ATTACK: 'explorer_attack',
-  RULER_WALK: 'ruler_walk',
-  RULER_ATTACK: 'ruler_attack',
-  HERO_WALK: 'hero_walk',
-  HERO_ATTACK: 'hero_attack',
-  CLOUD_PUFF: 'cloud',
-  SOUNDTRACK: 'game_soundtrack'
-} as const;
+export enum CharacterSounds {
+  // Movement sounds
+  WIZARD_WALK = "wizard_walk",
+  EXPLORER_WALK = "explorer_walk",
+  RULER_WALK = "ruler_walk",
+  HERO_WALK = "hero_walk",
+  
+  // Attack sounds - using available sounds
+  WIZARD_ATTACK = "explorer_attack",  // Using explorer attack for wizard
+  EXPLORER_ATTACK = "explorer_attack",
+  RULER_ATTACK = "hero_attack",       // Using hero attack for ruler
+  HERO_ATTACK = "hero_attack",
+  
+  // Other sounds
+  SOUNDTRACK = "game_soundtrack"
+}
 
 export const CHARACTER_SOUND_MAP: Record<string, { walk: string; attack: string }> = {
   'wizard_final_spritesheet': {

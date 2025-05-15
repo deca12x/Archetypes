@@ -152,6 +152,20 @@ export default class WorldScene extends Scene {
     D: Phaser.Input.Keyboard.Key;
   };
 
+  private tutorialText!: Phaser.GameObjects.Text;
+  private continueText!: Phaser.GameObjects.Text;
+  private tutorialBg!: Phaser.GameObjects.Rectangle;
+  private currentTutorialStep: number = 0;
+  private readonly tutorialSteps = [
+    "Welcome to Archetypes!",
+    "Use WASD or Arrow Keys to move",
+    "Press P to swap between characters",
+    "Press X to attack",
+    "Press M to toggle music",
+    "Press ESC to open menu",
+    "Let's begin your adventure!"
+  ];
+
   constructor() {
     super("WorldScene");
   }
@@ -240,6 +254,9 @@ export default class WorldScene extends Scene {
 
     // Join or create room based on stored action
     this.initializeMultiplayer();
+
+    // Add tutorial popup
+    this.createTutorialPopup();
   }
 
   initializeMultiplayer() {
@@ -983,20 +1000,75 @@ export default class WorldScene extends Scene {
   }
 
   private showAttackMessage() {
-    // Get the exact position where the player is rendered
-    const playerPos = this.getCharacterScreenPosition();
-    
-    // Show attack text above the character
-    this.attackText.setPosition(playerPos.x, playerPos.y - 20);
-    this.attackText.setVisible(true);
+    try {
+      // Get the exact position where the player is rendered
+      const playerPos = this.getCharacterScreenPosition();
+      
+      // Show attack text above the character
+      this.attackText.setPosition(playerPos.x, playerPos.y - 20);
+      this.attackText.setVisible(true);
 
-    // Play attack sound
-    this.playAttackSound();
+      // Play attack sound
+      this.playAttackSound();
 
-    // Hide after 1 second
-    this.time.delayedCall(1000, () => {
-      this.attackText.setVisible(false);
-    });
+      // Hide after 1 second
+      this.time.delayedCall(1000, () => {
+        this.attackText.setVisible(false);
+      });
+    } catch (error) {
+      console.error('Error showing attack message:', error);
+    }
+  }
+
+  private playAttackSound() {
+    try {
+      console.log('Playing attack sound for character:', this.currentCharacter);
+      const soundKey = CHARACTER_SOUND_MAP[this.currentCharacter]?.attack;
+      
+      if (soundKey) {
+        console.log('Found attack sound key:', soundKey);
+        
+        // Stop any existing attack sound
+        if (this.attackSound) {
+          console.log('Stopping existing attack sound');
+          this.attackSound.stop();
+        }
+        
+        // Check if sound exists
+        if (!this.sound.get(soundKey)) {
+          console.error('Attack sound not found:', soundKey);
+          return;
+        }
+        
+        // Create and play new attack sound
+        console.log('Creating new attack sound instance');
+        this.attackSound = this.sound.add(soundKey, {
+          volume: 1.0, // Increased volume
+          loop: false
+        });
+        
+        // Add event listeners for debugging
+        this.attackSound.on('play', () => {
+          console.log('Attack sound started playing');
+        });
+        
+        this.attackSound.on('complete', () => {
+          console.log('Attack sound completed');
+        });
+        
+        this.attackSound.on('stop', () => {
+          console.log('Attack sound stopped');
+        });
+        
+        // Play the sound
+        console.log('Playing attack sound');
+        this.attackSound.play();
+      } else {
+        console.warn('No attack sound found for character:', this.currentCharacter);
+      }
+    } catch (error) {
+      console.warn('Failed to play attack sound:', error);
+    }
   }
 
   private playMovementSound() {
@@ -1022,20 +1094,21 @@ export default class WorldScene extends Scene {
     }
   }
 
-  private playAttackSound() {
-    try {
-      const soundKey = CHARACTER_SOUND_MAP[this.currentCharacter]?.attack;
-      if (soundKey && this.sound.get(soundKey)) {
-        if (this.attackSound) {
-          this.attackSound.stop();
-        }
-        this.attackSound = this.sound.add(soundKey, { volume: 0.7 });
-        this.attackSound.play();
+  private toggleMusic() {
+    if (this.soundtrack) {
+      if (this.isMusicMuted) {
+        // Unmute and restore volume
+        this.soundtrack.setMute(false);
+        this.soundtrack.setVolume(0.5);
+        this.isMusicMuted = false;
+        console.log('Music unmuted');
       } else {
-        console.warn('Attack sound not found:', soundKey);
+        // Completely mute
+        this.soundtrack.setMute(true);
+        this.soundtrack.setVolume(0);
+        this.isMusicMuted = true;
+        console.log('Music muted');
       }
-    } catch (error) {
-      console.warn('Failed to play attack sound:', error);
     }
   }
 
@@ -1054,22 +1127,89 @@ export default class WorldScene extends Scene {
       this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.M).on('down', () => {
         this.toggleMusic();
       });
+
+      // Add visual feedback for music state
+      this.events.on('shutdown', () => {
+        if (this.soundtrack) {
+          this.soundtrack.stop();
+        }
+      });
     } catch (error) {
       console.warn('Failed to initialize soundtrack:', error);
     }
   }
 
-  private toggleMusic() {
-    if (this.soundtrack) {
-      if (this.isMusicMuted) {
-        this.soundtrack.setMute(false);
-        this.soundtrack.setVolume(0.5);
-        this.isMusicMuted = false;
-      } else {
-        this.soundtrack.setMute(true);
-        this.soundtrack.setVolume(0);
-        this.isMusicMuted = true;
+  private createTutorialPopup() {
+    // Create semi-transparent background
+    this.tutorialBg = this.add.rectangle(
+      this.cameras.main.width / 2,
+      this.cameras.main.height / 2,
+      this.cameras.main.width,
+      this.cameras.main.height,
+      0x000000,
+      0.7
+    );
+    this.tutorialBg.setScrollFactor(0);
+    this.tutorialBg.setDepth(1000);
+
+    // Add tutorial text
+    this.tutorialText = this.add.text(
+      this.cameras.main.width / 2,
+      this.cameras.main.height / 2 - 50,
+      this.tutorialSteps[0],
+      {
+        fontSize: '32px',
+        color: '#ffffff',
+        align: 'center',
+        fontFamily: 'Arial',
+        stroke: '#000000',
+        strokeThickness: 4
       }
+    ).setOrigin(0.5);
+    this.tutorialText.setDepth(1001);
+
+    // Add continue text
+    this.continueText = this.add.text(
+      this.cameras.main.width / 2,
+      this.cameras.main.height / 2 + 50,
+      "Press SPACE to continue",
+      {
+        fontSize: '24px',
+        color: '#ffffff',
+        align: 'center',
+        fontFamily: 'Arial',
+        stroke: '#000000',
+        strokeThickness: 3
+      }
+    ).setOrigin(0.5);
+    this.continueText.setDepth(1001);
+
+    // Add blinking animation to continue text
+    this.tweens.add({
+      targets: this.continueText,
+      alpha: 0,
+      duration: 1000,
+      yoyo: true,
+      repeat: -1
+    });
+
+    // Listen for space key to advance tutorial
+    this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE).on('down', () => {
+      this.nextTutorialStep();
+    });
+  }
+
+  private nextTutorialStep() {
+    this.currentTutorialStep++;
+    
+    if (this.currentTutorialStep < this.tutorialSteps.length) {
+      // Show next tutorial step
+      this.tutorialText.setText(this.tutorialSteps[this.currentTutorialStep]);
+    } else {
+      // End tutorial
+      this.tutorialBg.destroy();
+      this.tutorialText.destroy();
+      this.continueText.destroy();
     }
   }
 }

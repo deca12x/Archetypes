@@ -98,17 +98,13 @@ export default class BootScene extends Scene {
     console.log('Loading cloud sound...');
     this.load.audio('cloud', '/assets/sounds/cloud.wav');
     
-    // Load other character sounds
-    this.load.audio(CharacterSounds.WIZARD_WALK, '/assets/sounds/wizard_walk.wav');
-    this.load.audio(CharacterSounds.WIZARD_ATTACK, '/assets/sounds/wizard_attack.wav');
-    this.load.audio(CharacterSounds.EXPLORER_WALK, '/assets/sounds/explorer_walk.wav');
-    this.load.audio(CharacterSounds.EXPLORER_ATTACK, '/assets/sounds/explorer_attack.wav');
-    this.load.audio(CharacterSounds.RULER_WALK, '/assets/sounds/ruler_walk.wav');
-    this.load.audio(CharacterSounds.RULER_ATTACK, '/assets/sounds/ruler_attack.wav');
-    this.load.audio(CharacterSounds.HERO_WALK, '/assets/sounds/hero_walk.wav');
-    this.load.audio(CharacterSounds.HERO_ATTACK, '/assets/sounds/hero_attack.wav');
+    // Load available attack sounds
+    console.log('Loading character attack sounds...');
+    this.load.audio(CharacterSounds.EXPLORER_ATTACK, '/assets/sounds/characters/explorer_attack.wav');
+    this.load.audio(CharacterSounds.HERO_ATTACK, '/assets/sounds/characters/hero_attack.wav');
     
     // Load game soundtrack
+    console.log('Loading game soundtrack...');
     this.load.audio(CharacterSounds.SOUNDTRACK, '/assets/sounds/game_soundtrack.mp3');
   }
 
@@ -222,6 +218,7 @@ export default class BootScene extends Scene {
 
   create(): void {
     this.createAnimations();
-    this.launchGame();
+    // Start with world scene
+    this.scene.start("WorldScene", { socket: this.socket });
   }
 }

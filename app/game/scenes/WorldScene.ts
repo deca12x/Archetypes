@@ -22,6 +22,7 @@ import {
   triggerUIUp,
 } from "../../../lib/game/utils/ui";
 import { useUserDataStore } from "../../../lib/game/stores/userData";
+import { useChatStore } from "../../../lib/game/stores/chat";
 
 // Using string literal types instead of importing Direction from grid-engine
 type Direction = "up" | "down" | "left" | "right";
@@ -122,10 +123,16 @@ export default class WorldScene extends Scene {
 
   // Socket.io properties
   private socket: Socket | null = null;
-  private playerId: string | null = null;
+  public playerId: string | null = null;
   private roomId: string | null = null;
   private remotePlayers: Map<string, Phaser.GameObjects.Sprite> = new Map();
   private roomCodeText!: Phaser.GameObjects.Text;
+
+  // New properties
+  username: string = "";
+  adjacentPlayers: Map<string, Player> = new Map();
+  chatGroupId: string | null = null;
+  _lastAdjacentCheck: number = 0;
 
   constructor() {
     super("WorldScene");
@@ -187,7 +194,7 @@ export default class WorldScene extends Scene {
 
   initializeMultiplayer() {
     if (this.socket) {
-      const username = "Player" + Math.floor(Math.random() * 1000);
+      this.username = "Player" + Math.floor(Math.random() * 1000);
 
       if (typeof window !== "undefined") {
         const gameAction = (window as any).__gameAction;
@@ -195,14 +202,14 @@ export default class WorldScene extends Scene {
 
         if (gameAction === "join" && roomCode) {
           // Join existing room
-          this.joinRoom(roomCode, username);
+          this.joinRoom(roomCode, this.username);
         } else {
           // Create new room
-          this.createOrJoinRoom(username);
+          this.createOrJoinRoom(this.username);
         }
       } else {
         // Default to creating a room
-        this.createOrJoinRoom(username);
+        this.createOrJoinRoom(this.username);
       }
     }
   }
@@ -246,6 +253,12 @@ export default class WorldScene extends Scene {
     }
 
     this.listenMoves();
+
+    // Check for adjacent players every 500ms for performance
+    if (!this._lastAdjacentCheck || time - this._lastAdjacentCheck > 500) {
+      this.checkAdjacentPlayers();
+      this._lastAdjacentCheck = time;
+    }
   }
 
   listenMoves(): void {
@@ -512,6 +525,14 @@ export default class WorldScene extends Scene {
       console.error(`Room error: ${message}`);
       this.roomCodeText.setText(`Error: ${message}`);
     });
+
+    // Handle chat messages from other players
+    this.socket.on("chatMessageReceived", (message: any) => {
+      // Only process if we're in the same group
+      if (message.groupId === this.chatGroupId) {
+        useChatStore.getState().addMessage(message);
+      }
+    });
   }
 
   // Method to create/join a room
@@ -640,6 +661,125 @@ export default class WorldScene extends Scene {
       this.socket.emit("playerMovement", {
         roomId: this.roomId,
         movement: { x, y, direction },
+      });
+    }
+  }
+
+  checkAdjacentPlayers() {
+    if (!this.socket || !this.roomId || !this.playerId) return;
+
+    const playerPosition = this.gridEngine.getPosition("player");
+    if (!playerPosition) return;
+
+    // Clear current adjacent players
+    const previousAdjacentCount = this.adjacentPlayers.size;
+    this.adjacentPlayers.clear();
+
+    // Check all remote players
+    this.remotePlayers.forEach((sprite, playerId) => {
+      const remoteCharId = `remote_${playerId}`;
+
+      if (this.gridEngine.hasCharacter(remoteCharId)) {
+        const remotePosition = this.gridEngine.getPosition(remoteCharId);
+
+        // Check if player is adjacent (Manhattan distance of 1)
+        const dx = Math.abs(remotePosition.x - playerPosition.x);
+        const dy = Math.abs(remotePosition.y - playerPosition.y);
+
+        if (dx + dy <= 1) {
+          // This player is adjacent, add to our map
+          this.adjacentPlayers.set(playerId, {
+            id: playerId,
+            x: remotePosition.x,
+            y: remotePosition.y,
+            direction: this.gridEngine.getFacingDirection(remoteCharId),
+            username: "Player", // We might need to store usernames somewhere
+            sprite: "",
+          });
+        }
+      }
+    });
+
+    // Update proximity mode state
+    const chatStore = useChatStore.getState();
+    const wasInProximityMode = !!this.chatGroupId;
+    const isNowInProximityMode = this.adjacentPlayers.size > 0;
+
+    // Transition from not in proximity mode to in proximity mode
+    if (!wasInProximityMode && isNowInProximityMode) {
+      // Generate a group ID based on sorted player IDs
+      const playerIds = [
+        this.playerId,
+        ...Array.from(this.adjacentPlayers.keys()),
+      ].sort();
+      this.chatGroupId = playerIds.join("-");
+
+      // Update chat UI to show we're in proximity mode
+      chatStore.setProximityMode(true);
+      chatStore.setActiveGroupId(this.chatGroupId);
+
+      console.log(
+        "Started proximity chat with adjacent players:",
+        this.adjacentPlayers
+      );
+    }
+    // Transition from in proximity mode to not in proximity mode
+    else if (wasInProximityMode && !isNowInProximityMode) {
+      // Update chat UI to show we're not in proximity mode
+      chatStore.setProximityMode(false);
+      chatStore.setActiveGroupId(null);
+
+      this.chatGroupId = null;
+      console.log("Left proximity chat - no adjacent players");
+    }
+    // Group composition changed while in proximity mode
+    else if (
+      isNowInProximityMode &&
+      wasInProximityMode &&
+      this.adjacentPlayers.size !== previousAdjacentCount
+    ) {
+      // Generate a new group ID
+      const playerIds = [
+        this.playerId,
+        ...Array.from(this.adjacentPlayers.keys()),
+      ].sort();
+      const newGroupId = playerIds.join("-");
+
+      // If the group ID changed, update the group
+      if (newGroupId !== this.chatGroupId) {
+        this.chatGroupId = newGroupId;
+        chatStore.setActiveGroupId(this.chatGroupId);
+
+        console.log(
+          "Proximity chat group updated with new players:",
+          this.adjacentPlayers
+        );
+      }
+    }
+  }
+
+  sendChatMessage(message: string) {
+    if (!this.socket || !this.roomId) return;
+
+    // Create the chat message
+    const chatMessage = {
+      id: Date.now().toString(),
+      playerId: this.playerId!,
+      username: this.username,
+      message,
+      timestamp: Date.now(),
+      isSelfOnly: !this.chatGroupId, // Mark as self-only if not in proximity chat
+    };
+
+    // Add message to local store
+    useChatStore.getState().addMessage(chatMessage);
+
+    // Only send to server if in proximity chat
+    if (this.chatGroupId) {
+      this.socket.emit("chatMessage", {
+        roomId: this.roomId,
+        groupId: this.chatGroupId,
+        message,
       });
     }
   }

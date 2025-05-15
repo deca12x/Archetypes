@@ -231,6 +231,36 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
         }
       });
     });
+
+    // Handle chat messages
+    socket.on(
+      "chatMessage",
+      ({
+        roomId,
+        groupId,
+        message,
+      }: {
+        roomId: string;
+        groupId: string;
+        message: string;
+      }) => {
+        const room = gameRooms[roomId];
+        if (!room || !room.players[socket.id]) return;
+
+        const player = room.players[socket.id];
+
+        // Broadcast chat message to players in the same room
+        // The client will filter by groupId
+        socket.to(roomId).emit("chatMessageReceived", {
+          id: Date.now().toString(),
+          playerId: socket.id,
+          username: player.username,
+          message,
+          timestamp: Date.now(),
+          groupId,
+        });
+      }
+    );
   });
 
   console.log("Socket server initialized");

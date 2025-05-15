@@ -84,5 +84,25 @@ export default class BootScene extends Scene {
     });
   }
 
-  // [Rest of the code remains the same]
+  createAnimations(): void {
+    // Create walking animations for each character
+    this.createWalkingAnimation(Sprites.WIZARD, 12); // Wizard has 12 frames
+    this.createWalkingAnimation(Sprites.RULER, 12); // Ruler has 12 frames
+    this.createWalkingAnimation(Sprites.HERO, 12); // Hero has 12 frames
+  }
+
+  createWalkingAnimation(spriteKey: string, frameCount: number): void {
+    console.log(`Creating walking animation for ${spriteKey}`);
+    this.anims.create({
+      key: `${spriteKey}_walk`,
+      frames: this.anims.generateFrameNumbers(spriteKey, { start: 0, end: frameCount - 1 }),
+      frameRate: 10,
+      repeat: -1
+    });
+  }
+
+  create(): void {
+    this.createAnimations();
+    this.launchGame();
+  }
 }

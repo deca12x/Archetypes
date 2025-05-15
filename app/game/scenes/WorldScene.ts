@@ -310,11 +310,8 @@ export default class WorldScene extends Scene {
   }
 
   initializePlayer() {
-    this.cursors =
-      this.input?.keyboard?.createCursorKeys() as Phaser.Types.Input.Keyboard.CursorKeys;
-    this.enterKey = this.input?.keyboard?.addKey(
-      "ENTER"
-    ) as Phaser.Input.Keyboard.Key;
+    this.cursors = this.input?.keyboard?.createCursorKeys() as Phaser.Types.Input.Keyboard.CursorKeys;
+    this.enterKey = this.input?.keyboard?.addKey("ENTER") as Phaser.Input.Keyboard.Key;
 
     this.player = this.add.sprite(0, 0, Sprites.PLAYER);
     this.player.setOrigin(0.5, 0.5);

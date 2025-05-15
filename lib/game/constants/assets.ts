@@ -4,6 +4,9 @@ export enum Sprites {
   OAK = "oak",
   SCIENTIST = "scientist",
   BLUE = "blue",
+  WIZARD = "wizard_final_spritesheet",
+  RULER = "explorer_spritesheet_final",
+  HERO = "reaper-fullspritesheet"
 }
 
 export enum Tilesets {

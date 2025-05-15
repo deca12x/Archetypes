@@ -168,12 +168,12 @@ export default class WorldScene extends Scene {
     // Fix positionChangeFinished subscription and add socket event
     // @ts-ignore - We need to ignore this since the types are not correctly exported
     this.gridEngine.positionChangeFinished().subscribe((observer: any) => {
-      if (observer.charId === Sprites.PLAYER) {
+      if (observer.charId === "player") {
         savePlayerPosition(this);
 
         // Send position update to other players when movement finishes
-        const position = this.gridEngine.getPosition(Sprites.PLAYER);
-        const direction = this.gridEngine.getFacingDirection(Sprites.PLAYER);
+        const position = this.gridEngine.getPosition("player");
+        const direction = this.gridEngine.getFacingDirection("player");
         this.updatePlayerMovement(position.x, position.y, direction);
       }
     });
@@ -188,7 +188,6 @@ export default class WorldScene extends Scene {
   initializeMultiplayer() {
     if (this.socket) {
       const username = "Player" + Math.floor(Math.random() * 1000);
-      const sprite = Sprites.PLAYER;
 
       if (typeof window !== "undefined") {
         const gameAction = (window as any).__gameAction;
@@ -196,14 +195,14 @@ export default class WorldScene extends Scene {
 
         if (gameAction === "join" && roomCode) {
           // Join existing room
-          this.joinRoom(roomCode, username, sprite);
+          this.joinRoom(roomCode, username);
         } else {
           // Create new room
-          this.createOrJoinRoom(username, sprite);
+          this.createOrJoinRoom(username);
         }
       } else {
         // Default to creating a room
-        this.createOrJoinRoom(username, sprite);
+        this.createOrJoinRoom(username);
       }
     }
   }
@@ -213,8 +212,8 @@ export default class WorldScene extends Scene {
     this.gridEngine
       .movementStarted()
       .subscribe(({ charId, direction }: MovementEvent) => {
-        if (charId === Sprites.PLAYER) {
-          const position = this.gridEngine.getPosition(Sprites.PLAYER);
+        if (charId === "player") {
+          const position = this.gridEngine.getPosition("player");
           this.updatePlayerMovement(position.x, position.y, direction);
         }
       });
@@ -223,8 +222,8 @@ export default class WorldScene extends Scene {
     this.gridEngine
       .movementStopped()
       .subscribe(({ charId, direction }: MovementEvent) => {
-        if (charId === Sprites.PLAYER) {
-          const position = this.gridEngine.getPosition(Sprites.PLAYER);
+        if (charId === "player") {
+          const position = this.gridEngine.getPosition("player");
           this.updatePlayerMovement(position.x, position.y, direction);
         }
       });
@@ -233,8 +232,8 @@ export default class WorldScene extends Scene {
     this.gridEngine
       .directionChanged()
       .subscribe(({ charId, direction }: MovementEvent) => {
-        if (charId === Sprites.PLAYER) {
-          const position = this.gridEngine.getPosition(Sprites.PLAYER);
+        if (charId === "player") {
+          const position = this.gridEngine.getPosition("player");
           this.updatePlayerMovement(position.x, position.y, direction);
         }
       });
@@ -253,7 +252,7 @@ export default class WorldScene extends Scene {
     if (this.input.keyboard && !isUIOpen()) {
       // Check isMoving with ts-ignore
       // @ts-ignore - GridEngine types are incomplete
-      const isMoving = this.gridEngine.isMoving(Sprites.PLAYER);
+      const isMoving = this.gridEngine.isMoving("player");
 
       if (!isMoving) {
         const cursors = this.input.keyboard.createCursorKeys();
@@ -264,19 +263,19 @@ export default class WorldScene extends Scene {
         >;
 
         if ((cursors.left?.isDown || keys?.A?.isDown) && keys?.A != null) {
-          this.gridEngine.move(Sprites.PLAYER, "left");
+          this.gridEngine.move("player", "left");
         } else if (
           (cursors.right?.isDown || keys?.D?.isDown) &&
           keys?.D != null
         ) {
-          this.gridEngine.move(Sprites.PLAYER, "right");
+          this.gridEngine.move("player", "right");
         } else if ((cursors.up?.isDown || keys?.W?.isDown) && keys?.W != null) {
-          this.gridEngine.move(Sprites.PLAYER, "up");
+          this.gridEngine.move("player", "up");
         } else if (
           (cursors.down?.isDown || keys?.S?.isDown) &&
           keys?.S != null
         ) {
-          this.gridEngine.move(Sprites.PLAYER, "down");
+          this.gridEngine.move("player", "down");
         }
       }
     }
@@ -316,7 +315,8 @@ export default class WorldScene extends Scene {
       "ENTER"
     ) as Phaser.Input.Keyboard.Key;
 
-    this.player = this.add.sprite(0, 0, Sprites.PLAYER);
+    // Initially create with a placeholder sprite - will be updated when assigned by server
+    this.player = this.add.sprite(0, 0, "wizard");
     this.player.setOrigin(0.5, 0.5);
     this.player.setDepth(1);
   }
@@ -328,7 +328,7 @@ export default class WorldScene extends Scene {
       collisionTilePropertyName: "collides",
       characters: [
         {
-          id: Sprites.PLAYER,
+          id: "player",
           sprite: this.player,
           walkingAnimationMapping: {
             up: {
@@ -416,12 +416,26 @@ export default class WorldScene extends Scene {
     // Handle room creation response
     this.socket.on(
       "roomCreated",
-      ({ roomId, playerId }: { roomId: string; playerId: string }) => {
+      ({
+        roomId,
+        playerId,
+        sprite,
+      }: {
+        roomId: string;
+        playerId: string;
+        sprite: string;
+      }) => {
         this.roomId = roomId;
         this.playerId = playerId;
+
+        // Set the player's sprite texture based on server assignment
+        this.player.setTexture(sprite);
+
         // Update the room code text
         this.roomCodeText.setText(`Room: ${roomId}`);
-        console.log(`Joined room ${roomId} as player ${playerId}`);
+        console.log(
+          `Joined room ${roomId} as player ${playerId} with sprite ${sprite}`
+        );
       }
     );
 
@@ -465,16 +479,24 @@ export default class WorldScene extends Scene {
         roomId,
         playerId,
         players,
+        sprite,
       }: {
         roomId: string;
         playerId: string;
         players: Record<string, Player>;
+        sprite: string;
       }) => {
         this.roomId = roomId;
         this.playerId = playerId;
+
+        // Set the player's sprite texture based on server assignment
+        this.player.setTexture(sprite);
+
         // Update the room code text
         this.roomCodeText.setText(`Room: ${roomId}`);
-        console.log(`Joined room ${roomId} as player ${playerId}`);
+        console.log(
+          `Joined room ${roomId} as player ${playerId} with sprite ${sprite}`
+        );
 
         // Create sprites for existing players
         Object.entries(players).forEach(([id, playerData]) => {
@@ -493,16 +515,16 @@ export default class WorldScene extends Scene {
   }
 
   // Method to create/join a room
-  createOrJoinRoom(username: string, sprite: string) {
+  createOrJoinRoom(username: string) {
     if (this.socket) {
-      this.socket.emit("createRoom", { username, sprite });
+      this.socket.emit("createRoom", { username });
     }
   }
 
   // Method to join an existing room
-  joinRoom(roomId: string, username: string, sprite: string) {
+  joinRoom(roomId: string, username: string) {
     if (this.socket) {
-      this.socket.emit("joinRoom", { roomId, username, sprite });
+      this.socket.emit("joinRoom", { roomId, username });
       // Update the room code text immediately (will be confirmed when we get the roomJoined event)
       this.roomCodeText.setText(`Room: ${roomId}`);
     }

@@ -14,6 +14,7 @@ export interface Player {
 export interface GameRoom {
   roomId: string;
   players: Record<string, Player>;
+  availableSprites: string[];
 }
 
 // Global state for game rooms
@@ -29,6 +30,11 @@ export function generateRoomCode(): string {
   return result;
 }
 
+// Get all available character sprites
+function getAllSprites(): string[] {
+  return ["wizard", "explorer", "hero", "ruler"];
+}
+
 // Initialize Socket.io server
 export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
   const io = new SocketIOServer(httpServer, {
@@ -41,59 +47,101 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
   io.on("connection", (socket) => {
     console.log(`User connected: ${socket.id}`);
 
-    // Create a new game room
-    socket.on(
-      "createRoom",
-      ({ username, sprite }: { username: string; sprite: string }) => {
-        let roomId = generateRoomCode();
-
-        // Ensure unique room ID
-        while (gameRooms[roomId]) {
-          roomId = generateRoomCode();
-        }
-
-        // Create new room
-        gameRooms[roomId] = {
-          roomId,
-          players: {
-            [socket.id]: {
-              id: socket.id,
-              x: 5, // Default starting position
-              y: 5, // Default starting position
-              direction: "down",
-              username,
-              sprite,
-            },
-          },
-        };
-
-        // Join socket to the room
-        socket.join(roomId);
-
-        // Send room info back to client
-        socket.emit("roomCreated", { roomId, playerId: socket.id });
-        console.log(`Room created: ${roomId} by player ${socket.id}`);
+    // Check if a room exists and has available slots
+    socket.on("checkRoom", ({ roomId }: { roomId: string }, callback) => {
+      // Check if room exists
+      const room = gameRooms[roomId];
+      if (!room) {
+        socket.emit("roomError", { message: "Room not found" });
+        callback({ success: false });
+        return;
       }
-    );
+
+      // Check if the room has any available sprites left
+      if (room.availableSprites.length === 0) {
+        socket.emit("roomError", {
+          message: "Game is full. No more characters available.",
+        });
+        callback({ success: false });
+        return;
+      }
+
+      // Room exists and has space
+      callback({ success: true });
+    });
+
+    // Create a new game room
+    socket.on("createRoom", ({ username }: { username: string }) => {
+      let roomId = generateRoomCode();
+
+      // Ensure unique room ID
+      while (gameRooms[roomId]) {
+        roomId = generateRoomCode();
+      }
+
+      // Get all available sprites
+      const allSprites = getAllSprites();
+
+      // Randomly select a sprite for the room creator
+      const randomIndex = Math.floor(Math.random() * allSprites.length);
+      const selectedSprite = allSprites[randomIndex];
+
+      // Remove the selected sprite from available sprites
+      const remainingSprites = allSprites.filter(
+        (sprite) => sprite !== selectedSprite
+      );
+
+      // Create new room
+      gameRooms[roomId] = {
+        roomId,
+        players: {
+          [socket.id]: {
+            id: socket.id,
+            x: 5, // Default starting position
+            y: 5, // Default starting position
+            direction: "down",
+            username,
+            sprite: selectedSprite,
+          },
+        },
+        availableSprites: remainingSprites,
+      };
+
+      // Join socket to the room
+      socket.join(roomId);
+
+      // Send room info back to client
+      socket.emit("roomCreated", {
+        roomId,
+        playerId: socket.id,
+        sprite: selectedSprite,
+      });
+      console.log(
+        `Room created: ${roomId} by player ${socket.id} with sprite ${selectedSprite}`
+      );
+    });
 
     // Join an existing game room
     socket.on(
       "joinRoom",
-      ({
-        roomId,
-        username,
-        sprite,
-      }: {
-        roomId: string;
-        username: string;
-        sprite: string;
-      }) => {
+      ({ roomId, username }: { roomId: string; username: string }) => {
         // Check if room exists
         const room = gameRooms[roomId];
         if (!room) {
           socket.emit("roomError", { message: "Room not found" });
           return;
         }
+
+        // Check if the room has any available sprites left
+        if (room.availableSprites.length === 0) {
+          socket.emit("roomError", {
+            message: "Game is full. No more characters available.",
+          });
+          return;
+        }
+
+        // Get a sprite for the new player
+        const selectedSprite = room.availableSprites.pop() as string;
 
         // Add player to room
         room.players[socket.id] = {
@@ -102,7 +150,7 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
           y: 5, // Default starting position
           direction: "down",
           username,
-          sprite,
+          sprite: selectedSprite,
         };
 
         // Join socket to the room
@@ -113,6 +161,7 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
           roomId,
           playerId: socket.id,
           players: room.players,
+          sprite: selectedSprite,
         });
 
         // Notify other players about the new player
@@ -121,7 +170,9 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
           player: room.players[socket.id],
         });
 
-        console.log(`Player ${socket.id} joined room ${roomId}`);
+        console.log(
+          `Player ${socket.id} joined room ${roomId} with sprite ${selectedSprite}`
+        );
       }
     );
 
@@ -160,6 +211,12 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
       Object.keys(gameRooms).forEach((roomId) => {
         const room = gameRooms[roomId];
         if (room.players[socket.id]) {
+          // Get the sprite of the disconnected player
+          const sprite = room.players[socket.id].sprite;
+
+          // Return the sprite to the available sprites pool
+          room.availableSprites.push(sprite);
+
           // Notify other players about the disconnection
           socket.to(roomId).emit("playerLeft", { playerId: socket.id });
 

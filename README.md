@@ -45,7 +45,7 @@
                                  .*@       @@@@@       @@@@@@                                     
                                           @@@@@@       %@*                                        
 
-# 🗺12 Archetypes: Unlock The Treasure of Strategy
+# 12 Archetypes: Unlock The Treasure of Strategy
 
 **12 Archetypes** is a real-time multiplayer strategy RPG where players embody timeless archetypes — Hero, Sage, Outlaw, and more — competing to unlock a shared crypto treasure chest.
 
@@ -80,30 +80,6 @@ Victory isn’t guaranteed. Players must navigate complex social dynamics, strat
 
 This repository is the frontend interface for 12 Archetypes, designed to deliver a seamless Web3 gaming experience.
 
----
-
-## Nebula Subconscious Chat Integration
-
-In 12 Archetypes, players converse with their character's subconscious — an AI-driven companion that offers hints, lore, and reactive dialogue.
-
-Powered by the Thirdweb Nebula API, this feature keeps players immersed, providing context-aware responses during gameplay.
-
-### Features
-- In-Game Thought Bubbles with hints and story elements.
-- Persistent Subconscious Chat Interface for guidance and immersion.
-- Dynamic AI responses reacting to player moves and game states.
-
-### Setup
-1. Obtain your Thirdweb Nebula API Key.
-2. Update `.env.local`:
-   ```bash
-   NEXT_PUBLIC_THIRDWEB_CLIENT_ID=your_client_id_here
-   NEXT_PUBLIC_NEBULA_API_KEY=your_nebula_api_key_here
-   ```
-
-For more information, visit: [Thirdweb Nebula Documentation](https://portal.thirdweb.com/nebula)
-
----
 
 ## Archetypes Overview
 
@@ -144,18 +120,7 @@ Each archetype influences whether a player tries to unlock the chest (Opener), b
 - All actions have cooldowns (2-6 minutes) to balance strategy and pace.
 - Game state evolves in real-time, with live updates via Mantle smart contracts.
 
----
 
-## Why 12 Archetypes
-
-This project delivers:
-- A modern, high-performance interface for navigating maps and game states.
-- Wallet and social login flows with Thirdweb authentication.
-- Integration with Mantle smart contracts for prize locking and rewards.
-- A showcase of pixel-art level selectors and game UI.
-- A foundation for building Web3-native multiplayer strategy games.
-
----
 
 ## Tech Stack
 
@@ -167,6 +132,27 @@ This project delivers:
 - Nebula AI Chat API
 - GridEngine / Phaser 3 (Game logic integration)
 
+---
+
+
+## Nebula Subconscious Chat Integration
+
+In 12 Archetypes, players converse with their character's subconscious — an AI-driven companion that offers hints, lore, and reactive dialogue.
+
+Powered by the Thirdweb Nebula API, this feature keeps players immersed, providing context-aware responses during gameplay.
+
+### Features
+- In-Game Thought Bubbles with hints and story elements.
+- Persistent Subconscious Chat Interface for guidance and immersion.
+- Dynamic AI responses reacting to player moves and game states.
+
+### Setup
+1. Obtain your Thirdweb Nebula API Key.
+2. Update `.env.local`:
+   ```bash
+   NEXT_PUBLIC_THIRDWEB_CLIENT_ID=your_client_id_here
+   NEXT_PUBLIC_NEBULA_API_KEY=your_nebula_api_key_here
+   ```
 ---
 
 ## Getting Started

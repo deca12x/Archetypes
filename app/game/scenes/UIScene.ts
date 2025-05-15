@@ -1,5 +1,6 @@
 import { Scene, GameObjects } from "phaser";
 import { PLAYABLE_CHARACTERS } from "../../../lib/game/constants/assets";
+import { useCharacterStore } from "@/lib/game/stores/characterStore";
 
 interface CharacterSlot {
   sprite: GameObjects.Sprite;
@@ -25,6 +26,18 @@ export default class UIScene extends Scene {
     // Set up the scene
     this.cameras.main.setScrollFactor(0);
     this.cameras.main.setBackgroundColor('#00000000');
+
+    // Initialize character store and set initial character
+    console.log('Initializing character store...');
+    useCharacterStore.getState().initializeCharacters();
+    useCharacterStore.getState().setCurrentCharacter('wizard');
+    
+    // Debug log to check store state
+    const store = useCharacterStore.getState();
+    console.log('Character store state:', {
+      currentCharacter: store.currentCharacter,
+      characters: Array.from(store.characters.entries())
+    });
 
     // Create character selection window
     this.createCharacterWindow();
@@ -102,8 +115,29 @@ export default class UIScene extends Scene {
     const nextCharacter = PLAYABLE_CHARACTERS[this.currentCharacterIndex];
     console.log('UIScene: Switching to character:', nextCharacter);
     
+    // Map sprite name to character ID
+    const characterIdMap: Record<string, string> = {
+      'wizard_final_spritesheet': 'wizard',
+      'explorer_spritesheet_final': 'explorer',
+      'ruler_spritesheet': 'ruler'
+    };
+
+    // Update character store
+    const characterId = characterIdMap[nextCharacter];
+    if (characterId) {
+      console.log('UIScene: Setting current character in store to:', characterId);
+      useCharacterStore.getState().setCurrentCharacter(characterId);
+    }
+    
     // Update active character slot
     this.updateActiveCharacter(this.currentCharacterIndex);
+    
+    // Debug log to check store state after update
+    const store = useCharacterStore.getState();
+    console.log('UIScene: Character store state after update:', {
+      currentCharacter: store.currentCharacter,
+      characters: Array.from(store.characters.entries())
+    });
     
     // Emit event to WorldScene
     this.events.emit('characterChanged', nextCharacter);
@@ -114,5 +148,18 @@ export default class UIScene extends Scene {
       slot.isActive = i === index;
       slot.background.setStrokeStyle(2, slot.isActive ? this.ACTIVE_SLOT_COLOR : 0xffffff);
     });
+  }
+
+  private getCharacterId(sprite: string): string {
+    switch (sprite) {
+      case 'wizard_final_spritesheet':
+        return 'wizard';
+      case 'explorer_spritesheet_final':
+        return 'explorer';
+      case 'ruler_spritesheet':
+        return 'ruler';
+      default:
+        return 'wizard';
+    }
   }
 } 

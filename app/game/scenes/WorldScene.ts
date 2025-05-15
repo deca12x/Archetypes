@@ -23,6 +23,7 @@ import {
   triggerUIUp,
 } from "../../../lib/game/utils/ui";
 import { useUserDataStore } from "../../../lib/game/stores/userData";
+import { useCharacterStore } from "@/lib/game/stores/characterStore";
 
 // Using string literal types instead of importing Direction from grid-engine
 type Direction = "up" | "down" | "left" | "right";
@@ -673,6 +674,20 @@ export default class WorldScene extends Scene {
   private handleCharacterChange(newCharacter: typeof PLAYABLE_CHARACTERS[number]) {
     console.log('WorldScene: Changing character to:', newCharacter);
     
+    // Map sprite name to character ID
+    const characterIdMap: Record<string, string> = {
+      'wizard_final_spritesheet': 'wizard',
+      'explorer_spritesheet_final': 'explorer',
+      'ruler_spritesheet': 'ruler'
+    };
+
+    // Update character store first
+    const characterId = characterIdMap[newCharacter];
+    if (characterId) {
+      console.log('WorldScene: Updating character store with ID:', characterId);
+      useCharacterStore.getState().setCurrentCharacter(characterId);
+    }
+    
     // Update player sprite
     this.player.setTexture(newCharacter);
     console.log('WorldScene: Player texture updated to:', newCharacter);
@@ -774,8 +789,9 @@ export default class WorldScene extends Scene {
     const playerX = this.player.x;
     const playerY = this.player.y;
     
+    // Add one tile width (32 pixels) to move the cloud one tile to the right
     return {
-      x: playerX,
+      x: playerX + 32,
       y: playerY
     };
   }

@@ -528,8 +528,29 @@ export default class WorldScene extends Scene {
 
     // Handle chat messages from other players
     this.socket.on("chatMessageReceived", (message: any) => {
-      // Only process if we're in the same group
-      if (message.groupId === this.chatGroupId) {
+      console.log(
+        "Chat message received:",
+        message.message,
+        "groupId:",
+        message.groupId,
+        "our groupId:",
+        this.chatGroupId
+      );
+
+      // If we're not in proximity mode, ignore the message
+      if (!this.chatGroupId) return;
+
+      // Get the IDs from both group IDs to compare
+      const ourGroupIds = this.chatGroupId.split("-").sort();
+      const messageGroupIds = message.groupId.split("-").sort();
+
+      // Check if we share at least one player ID with the message group
+      // This ensures messages will transmit between connected players
+      const playerOverlap = ourGroupIds.some((id) =>
+        messageGroupIds.includes(id)
+      );
+
+      if (playerOverlap) {
         useChatStore.getState().addMessage(message);
       }
     });
@@ -671,11 +692,13 @@ export default class WorldScene extends Scene {
     const playerPosition = this.gridEngine.getPosition("player");
     if (!playerPosition) return;
 
+    // Store previous adjacent players for comparison
+    const previousAdjacentPlayers = new Map(this.adjacentPlayers);
+
     // Clear current adjacent players
-    const previousAdjacentCount = this.adjacentPlayers.size;
     this.adjacentPlayers.clear();
 
-    // Check all remote players
+    // Direct adjacency check - players within 1 tile
     this.remotePlayers.forEach((sprite, playerId) => {
       const remoteCharId = `remote_${playerId}`;
 
@@ -693,28 +716,30 @@ export default class WorldScene extends Scene {
             x: remotePosition.x,
             y: remotePosition.y,
             direction: this.gridEngine.getFacingDirection(remoteCharId),
-            username: "Player", // We might need to store usernames somewhere
+            username: "Player",
             sprite: "",
           });
         }
       }
     });
 
-    // Update proximity mode state
+    // Get the chat store
     const chatStore = useChatStore.getState();
+
+    // Determine if we were or are now in proximity chat
     const wasInProximityMode = !!this.chatGroupId;
     const isNowInProximityMode = this.adjacentPlayers.size > 0;
 
-    // Transition from not in proximity mode to in proximity mode
+    // Handle transition into proximity mode
     if (!wasInProximityMode && isNowInProximityMode) {
-      // Generate a group ID based on sorted player IDs
+      // Generate a group ID with only our ID and adjacent players
       const playerIds = [
         this.playerId,
         ...Array.from(this.adjacentPlayers.keys()),
       ].sort();
       this.chatGroupId = playerIds.join("-");
 
-      // Update chat UI to show we're in proximity mode
+      // Update chat UI
       chatStore.setProximityMode(true);
       chatStore.setActiveGroupId(this.chatGroupId);
 
@@ -723,37 +748,50 @@ export default class WorldScene extends Scene {
         this.adjacentPlayers
       );
     }
-    // Transition from in proximity mode to not in proximity mode
+    // Handle transition out of proximity mode
     else if (wasInProximityMode && !isNowInProximityMode) {
-      // Update chat UI to show we're not in proximity mode
       chatStore.setProximityMode(false);
       chatStore.setActiveGroupId(null);
-
       this.chatGroupId = null;
+
       console.log("Left proximity chat - no adjacent players");
     }
-    // Group composition changed while in proximity mode
-    else if (
-      isNowInProximityMode &&
-      wasInProximityMode &&
-      this.adjacentPlayers.size !== previousAdjacentCount
-    ) {
-      // Generate a new group ID
-      const playerIds = [
-        this.playerId,
-        ...Array.from(this.adjacentPlayers.keys()),
-      ].sort();
-      const newGroupId = playerIds.join("-");
+    // Handle changes to the proximity group
+    else if (isNowInProximityMode) {
+      // Check if the adjacency has changed
+      let adjacencyChanged = false;
 
-      // If the group ID changed, update the group
-      if (newGroupId !== this.chatGroupId) {
+      // Check if any player was added
+      for (const playerId of this.adjacentPlayers.keys()) {
+        if (!previousAdjacentPlayers.has(playerId)) {
+          adjacencyChanged = true;
+          break;
+        }
+      }
+
+      // Check if any player was removed
+      if (!adjacencyChanged) {
+        for (const playerId of previousAdjacentPlayers.keys()) {
+          if (!this.adjacentPlayers.has(playerId)) {
+            adjacencyChanged = true;
+            break;
+          }
+        }
+      }
+
+      // If adjacency changed, update the group ID
+      if (adjacencyChanged) {
+        const playerIds = [
+          this.playerId,
+          ...Array.from(this.adjacentPlayers.keys()),
+        ].sort();
+        const newGroupId = playerIds.join("-");
+
+        // Update group ID
         this.chatGroupId = newGroupId;
         chatStore.setActiveGroupId(this.chatGroupId);
 
-        console.log(
-          "Proximity chat group updated with new players:",
-          this.adjacentPlayers
-        );
+        console.log("Proximity chat group updated:", this.adjacentPlayers);
       }
     }
   }
@@ -776,11 +814,14 @@ export default class WorldScene extends Scene {
 
     // Only send to server if in proximity chat
     if (this.chatGroupId) {
+      console.log("Sending chat message to group:", this.chatGroupId);
       this.socket.emit("chatMessage", {
         roomId: this.roomId,
         groupId: this.chatGroupId,
         message,
       });
+    } else {
+      console.log("Message is self-only (no proximity chat active)");
     }
   }
 }

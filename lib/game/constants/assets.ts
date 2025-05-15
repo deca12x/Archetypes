@@ -1,16 +1,18 @@
 export enum Sprites {
-  PLAYER = "wizard_final_spritesheet",  
+  PLAYER = "player",
   WIZARD = "wizard_final_spritesheet",
-  RULER = "explorer_spritesheet_final",
-  HERO = "ruler_spritesheet",
-  CLOUD = "clouds_spritesheet"
+  EXPLORER = "explorer_spritesheet_final",
+  RULER = "ruler_spritesheet",
+  HERO = "hero_attack_spritesheet",
+  CLOUD = "cloud"
 }
 
 // Array of playable character sprites in order of appearance
 export const PLAYABLE_CHARACTERS = [
   "wizard_final_spritesheet",    // Wizard
   "explorer_spritesheet_final",  // Explorer
-  "ruler_spritesheet"           // Ruler
+  "ruler_spritesheet",          // Ruler
+  "hero_attack_spritesheet"     // Hero
 ] as const;
 
 export enum Tilesets {

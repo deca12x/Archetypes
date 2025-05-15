@@ -1,10 +1,11 @@
 import { Scene, GameObjects } from "phaser";
 import { PLAYER_SIZE } from "../../../lib/game/constants/game";
-import { Maps, Sprites, Tilesets } from "../../../lib/game/constants/assets";
+import { Maps, Sprites, Tilesets, PLAYABLE_CHARACTERS } from "../../../lib/game/constants/assets";
 import { UIEvents } from "../../../lib/game/constants/events";
 import { dispatch } from "../../../lib/game/utils/ui";
 import { useUIStore } from "../../../lib/game/stores/ui";
 import { useSocket } from "@/lib/hooks/useSocket";
+import { CharacterSounds } from "../../../lib/game/constants/sounds";
 
 export default class BootScene extends Scene {
   text!: GameObjects.Text;
@@ -40,6 +41,14 @@ export default class BootScene extends Scene {
       this.launchGame();
     });
 
+    this.load.on("filecomplete", (key: string) => {
+      console.log('Loaded file:', key);
+    });
+
+    this.load.on("loaderror", (file: any) => {
+      console.error('Error loading file:', file.key);
+    });
+
     this.loadImages();
     this.loadSpriteSheets();
     this.loadMaps();
@@ -57,6 +66,50 @@ export default class BootScene extends Scene {
       } as any,
     });
     loadingText.setOrigin(0.5, 0.5);
+
+    // Load all character spritesheets
+    this.load.spritesheet(Sprites.WIZARD, '/assets/images/characters/wizard attack.png', {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
+    this.load.spritesheet(Sprites.EXPLORER, '/assets/images/characters/explorer_spritesheet_final.png', {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
+    this.load.spritesheet(Sprites.RULER, '/assets/images/characters/rulerattack.png', {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
+    this.load.spritesheet(Sprites.HERO, '/assets/images/characters/hero_attack_spritesheet.png', {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
+
+    // Load cloud sprite with correct dimensions
+    this.load.spritesheet(Sprites.CLOUD, '/assets/images/characters/cloud.png', {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
+
+    // Load character sounds
+    console.log('Loading character sounds...');
+    
+    // Load cloud sound first to ensure it's available
+    console.log('Loading cloud sound...');
+    this.load.audio('cloud', '/assets/sounds/cloud.wav');
+    
+    // Load other character sounds
+    this.load.audio(CharacterSounds.WIZARD_WALK, '/assets/sounds/wizard_walk.wav');
+    this.load.audio(CharacterSounds.WIZARD_ATTACK, '/assets/sounds/wizard_attack.wav');
+    this.load.audio(CharacterSounds.EXPLORER_WALK, '/assets/sounds/explorer_walk.wav');
+    this.load.audio(CharacterSounds.EXPLORER_ATTACK, '/assets/sounds/explorer_attack.wav');
+    this.load.audio(CharacterSounds.RULER_WALK, '/assets/sounds/ruler_walk.wav');
+    this.load.audio(CharacterSounds.RULER_ATTACK, '/assets/sounds/ruler_attack.wav');
+    this.load.audio(CharacterSounds.HERO_WALK, '/assets/sounds/hero_walk.wav');
+    this.load.audio(CharacterSounds.HERO_ATTACK, '/assets/sounds/hero_attack.wav');
+    
+    // Load game soundtrack
+    this.load.audio(CharacterSounds.SOUNDTRACK, '/assets/sounds/game_soundtrack.mp3');
   }
 
   loadImages(): void {
@@ -94,38 +147,77 @@ export default class BootScene extends Scene {
   }
 
   createAnimations(): void {
-    // Create walking animations for each character
-    this.createWalkingAnimation(Sprites.WIZARD, 12); // Wizard has 12 frames
-    this.createWalkingAnimation(Sprites.RULER, 12); // Ruler has 12 frames
-    this.createWalkingAnimation(Sprites.HERO, 12); // Hero has 12 frames
+    try {
+      // Create walking animations for each character
+      this.createWalkingAnimation(Sprites.WIZARD, 12); // Wizard has 12 frames
+      this.createWalkingAnimation(Sprites.EXPLORER, 12); // Explorer has 12 frames
+      this.createWalkingAnimation(Sprites.RULER, 12); // Ruler has 12 frames
+      this.createWalkingAnimation(Sprites.HERO, 12); // Hero has 12 frames
 
-    // Create cloud animation
-    this.createCloudAnimation();
+      // Create cloud animation
+      this.createCloudAnimation();
+    } catch (error) {
+      console.error('Error creating animations:', error);
+    }
   }
 
   createWalkingAnimation(spriteKey: string, frameCount: number): void {
-    console.log(`Creating walking animation for ${spriteKey}`);
-    this.anims.create({
-      key: `${spriteKey}_walk`,
-      frames: this.anims.generateFrameNumbers(spriteKey, { start: 0, end: frameCount - 1 }),
-      frameRate: 10,
-      repeat: -1
-    });
+    try {
+      console.log(`Creating walking animation for ${spriteKey}`);
+      if (!this.textures.exists(spriteKey)) {
+        console.error(`Texture does not exist for ${spriteKey}`);
+        return;
+      }
+
+      const frames = this.anims.generateFrameNumbers(spriteKey, { 
+        start: 0, 
+        end: frameCount - 1,
+        first: 0
+      });
+
+      if (!frames || frames.length === 0) {
+        console.error(`Failed to generate frames for ${spriteKey}`);
+        return;
+      }
+
+      this.anims.create({
+        key: `${spriteKey}_walk`,
+        frames: frames,
+        frameRate: 10,
+        repeat: -1
+      });
+
+      console.log(`Walking animation created for ${spriteKey}`);
+    } catch (error) {
+      console.error(`Error creating walking animation for ${spriteKey}:`, error);
+    }
   }
 
   createCloudAnimation(): void {
-    console.log('Creating cloud animation');
-    this.anims.create({
-      key: 'cloud_puff',
-      frames: this.anims.generateFrameNumbers(Sprites.CLOUD, { 
-        start: 0, 
-        end: 3,
-        zeroPad: 1 // This ensures proper frame sequencing
-      }),
-      frameRate: 8,
-      repeat: 0,
-      hideOnComplete: true
-    });
+    try {
+      console.log('Creating cloud animation');
+      if (!this.textures.exists(Sprites.CLOUD)) {
+        console.error('Cloud texture does not exist:', Sprites.CLOUD);
+        return;
+      }
+
+      // Create cloud animation with proper frame configuration
+      this.anims.create({
+        key: 'cloud_puff',
+        frames: this.anims.generateFrameNumbers(Sprites.CLOUD, { 
+          start: 0, 
+          end: 3,
+          first: 0
+        }),
+        frameRate: 8,
+        repeat: 0,
+        hideOnComplete: true
+      });
+
+      console.log('Cloud animation created successfully');
+    } catch (error) {
+      console.error('Error creating cloud animation:', error);
+    }
   }
 
   create(): void {

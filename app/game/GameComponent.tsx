@@ -1,3 +1,4 @@
+// app/game/GameComponent.tsx
 "use client";
 
 import { AUTO, Scale, Game as PhaserGame } from "phaser";
@@ -6,7 +7,9 @@ import GridEngine from "grid-engine";
 import BootScene from "./scenes/BootScene";
 import WorldScene from "./scenes/WorldScene";
 import { useUIStore } from "../../lib/game/stores/ui";
+import { useChatStore } from "../../lib/game/stores/chat";
 import Loading from "./ui/Loading";
+import ChatWindow from "./ui/ChatWindow";
 import { useSocket } from "@/lib/hooks/useSocket";
 
 const GameComponent = () => {
@@ -14,6 +17,7 @@ const GameComponent = () => {
   const { loading } = useUIStore();
   const gameContainerRef = useRef<HTMLDivElement>(null);
   const { socket, isConnected } = useSocket();
+  const [worldScene, setWorldScene] = useState<WorldScene | null>(null);
 
   useEffect(() => {
     // Make the socket globally available to the Phaser game
@@ -66,11 +70,34 @@ const GameComponent = () => {
 
     setGame(newGame);
 
+    // Get reference to the WorldScene once it's created
+    const checkForWorldScene = () => {
+      const worldSceneInstance = newGame.scene.getScene(
+        "WorldScene"
+      ) as WorldScene;
+      if (worldSceneInstance) {
+        setWorldScene(worldSceneInstance);
+      } else {
+        // Try again in a short while if not found
+        setTimeout(checkForWorldScene, 100);
+      }
+    };
+
+    // Start checking once the game is loaded
+    newGame.events.once("ready", checkForWorldScene);
+
     // Cleanup on unmount
     return () => {
       newGame.destroy(true);
     };
-  }, [gameContainerRef.current, socket]); // Add socket as a dependency
+  }, [gameContainerRef.current, socket]);
+
+  // Handle chat message sending
+  const handleSendMessage = (message: string) => {
+    if (worldScene) {
+      worldScene.sendChatMessage(message);
+    }
+  };
 
   return (
     <>
@@ -84,6 +111,12 @@ const GameComponent = () => {
         id="game"
         ref={gameContainerRef}
         style={{ width: "100%", height: "100%" }}
+      />
+      {/* Always show the chat window */}
+      <ChatWindow
+        onSendMessage={handleSendMessage}
+        username={worldScene?.username || "Player"}
+        playerId={worldScene?.playerId || ""}
       />
     </>
   );

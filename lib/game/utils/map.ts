@@ -1,15 +1,15 @@
 import { Tilemaps } from "phaser";
-import type { WorldScene } from "../../../app/game/scenes/WorldScene";
+import WorldScene from "../../../app/game/scenes/WorldScene";
 import { useUserDataStore } from "../stores/userData";
 import { Layers, Sprites } from "../constants/assets";
 import { PLAYER_SIZE } from "../constants/game";
 
 export const getPlayerPosition = (scene: WorldScene) => {
-  const { x, y } = scene.gridEngine.getSprite(Sprites.PLAYER) ?? { x: 0, y: 0 };
+  const { x, y } = scene.gridEngine.getPosition("player") ?? { x: 0, y: 0 };
 
   return {
-    x: x + PLAYER_SIZE.blankZoneWidth,
-    y: y + PLAYER_SIZE.blankZoneHeight,
+    x: x * 32 + PLAYER_SIZE.blankZoneWidth,
+    y: y * 32 + PLAYER_SIZE.blankZoneHeight,
   };
 };
 
@@ -70,7 +70,7 @@ export const savePlayerPosition = (scene: WorldScene) => {
         x: currentTile.x,
         y: currentTile.y,
         map: scene.map,
-        facingDirection: scene.gridEngine.getFacingDirection(Sprites.PLAYER),
+        facingDirection: scene.gridEngine.getFacingDirection("player"),
       },
     });
   }

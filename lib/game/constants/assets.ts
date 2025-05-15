@@ -1,9 +1,8 @@
 export enum Sprites {
-  PLAYER = "player",
-  BICYCLE = "bicycle",
-  OAK = "oak",
-  SCIENTIST = "scientist",
-  BLUE = "blue",
+  WIZARD = "wizard",
+  EXPLORER = "explorer",
+  HERO = "hero",
+  RULER = "ruler",
 }
 
 export enum Tilesets {

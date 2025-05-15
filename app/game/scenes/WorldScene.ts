@@ -22,6 +22,7 @@ import {
   triggerUIUp,
 } from "../../../lib/game/utils/ui";
 import { useUserDataStore } from "../../../lib/game/stores/userData";
+import { useChatStore } from "../../../lib/game/stores/chat";
 
 // Using string literal types instead of importing Direction from grid-engine
 type Direction = "up" | "down" | "left" | "right";
@@ -122,10 +123,16 @@ export default class WorldScene extends Scene {
 
   // Socket.io properties
   private socket: Socket | null = null;
-  private playerId: string | null = null;
+  public playerId: string | null = null;
   private roomId: string | null = null;
   private remotePlayers: Map<string, Phaser.GameObjects.Sprite> = new Map();
   private roomCodeText!: Phaser.GameObjects.Text;
+
+  // New properties
+  username: string = "";
+  adjacentPlayers: Map<string, Player> = new Map();
+  chatGroupId: string | null = null;
+  _lastAdjacentCheck: number = 0;
 
   constructor() {
     super("WorldScene");
@@ -168,12 +175,12 @@ export default class WorldScene extends Scene {
     // Fix positionChangeFinished subscription and add socket event
     // @ts-ignore - We need to ignore this since the types are not correctly exported
     this.gridEngine.positionChangeFinished().subscribe((observer: any) => {
-      if (observer.charId === Sprites.PLAYER) {
+      if (observer.charId === "player") {
         savePlayerPosition(this);
 
         // Send position update to other players when movement finishes
-        const position = this.gridEngine.getPosition(Sprites.PLAYER);
-        const direction = this.gridEngine.getFacingDirection(Sprites.PLAYER);
+        const position = this.gridEngine.getPosition("player");
+        const direction = this.gridEngine.getFacingDirection("player");
         this.updatePlayerMovement(position.x, position.y, direction);
       }
     });
@@ -187,8 +194,7 @@ export default class WorldScene extends Scene {
 
   initializeMultiplayer() {
     if (this.socket) {
-      const username = "Player" + Math.floor(Math.random() * 1000);
-      const sprite = Sprites.PLAYER;
+      this.username = "Player" + Math.floor(Math.random() * 1000);
 
       if (typeof window !== "undefined") {
         const gameAction = (window as any).__gameAction;
@@ -196,14 +202,14 @@ export default class WorldScene extends Scene {
 
         if (gameAction === "join" && roomCode) {
           // Join existing room
-          this.joinRoom(roomCode, username, sprite);
+          this.joinRoom(roomCode, this.username);
         } else {
           // Create new room
-          this.createOrJoinRoom(username, sprite);
+          this.createOrJoinRoom(this.username);
         }
       } else {
         // Default to creating a room
-        this.createOrJoinRoom(username, sprite);
+        this.createOrJoinRoom(this.username);
       }
     }
   }
@@ -213,8 +219,8 @@ export default class WorldScene extends Scene {
     this.gridEngine
       .movementStarted()
       .subscribe(({ charId, direction }: MovementEvent) => {
-        if (charId === Sprites.PLAYER) {
-          const position = this.gridEngine.getPosition(Sprites.PLAYER);
+        if (charId === "player") {
+          const position = this.gridEngine.getPosition("player");
           this.updatePlayerMovement(position.x, position.y, direction);
         }
       });
@@ -223,8 +229,8 @@ export default class WorldScene extends Scene {
     this.gridEngine
       .movementStopped()
       .subscribe(({ charId, direction }: MovementEvent) => {
-        if (charId === Sprites.PLAYER) {
-          const position = this.gridEngine.getPosition(Sprites.PLAYER);
+        if (charId === "player") {
+          const position = this.gridEngine.getPosition("player");
           this.updatePlayerMovement(position.x, position.y, direction);
         }
       });
@@ -233,8 +239,8 @@ export default class WorldScene extends Scene {
     this.gridEngine
       .directionChanged()
       .subscribe(({ charId, direction }: MovementEvent) => {
-        if (charId === Sprites.PLAYER) {
-          const position = this.gridEngine.getPosition(Sprites.PLAYER);
+        if (charId === "player") {
+          const position = this.gridEngine.getPosition("player");
           this.updatePlayerMovement(position.x, position.y, direction);
         }
       });
@@ -247,13 +253,19 @@ export default class WorldScene extends Scene {
     }
 
     this.listenMoves();
+
+    // Check for adjacent players every 500ms for performance
+    if (!this._lastAdjacentCheck || time - this._lastAdjacentCheck > 500) {
+      this.checkAdjacentPlayers();
+      this._lastAdjacentCheck = time;
+    }
   }
 
   listenMoves(): void {
     if (this.input.keyboard && !isUIOpen()) {
       // Check isMoving with ts-ignore
       // @ts-ignore - GridEngine types are incomplete
-      const isMoving = this.gridEngine.isMoving(Sprites.PLAYER);
+      const isMoving = this.gridEngine.isMoving("player");
 
       if (!isMoving) {
         const cursors = this.input.keyboard.createCursorKeys();
@@ -264,19 +276,19 @@ export default class WorldScene extends Scene {
         >;
 
         if ((cursors.left?.isDown || keys?.A?.isDown) && keys?.A != null) {
-          this.gridEngine.move(Sprites.PLAYER, "left");
+          this.gridEngine.move("player", "left");
         } else if (
           (cursors.right?.isDown || keys?.D?.isDown) &&
           keys?.D != null
         ) {
-          this.gridEngine.move(Sprites.PLAYER, "right");
+          this.gridEngine.move("player", "right");
         } else if ((cursors.up?.isDown || keys?.W?.isDown) && keys?.W != null) {
-          this.gridEngine.move(Sprites.PLAYER, "up");
+          this.gridEngine.move("player", "up");
         } else if (
           (cursors.down?.isDown || keys?.S?.isDown) &&
           keys?.S != null
         ) {
-          this.gridEngine.move(Sprites.PLAYER, "down");
+          this.gridEngine.move("player", "down");
         }
       }
     }
@@ -316,7 +328,8 @@ export default class WorldScene extends Scene {
       "ENTER"
     ) as Phaser.Input.Keyboard.Key;
 
-    this.player = this.add.sprite(0, 0, Sprites.PLAYER);
+    // Initially create with a placeholder sprite - will be updated when assigned by server
+    this.player = this.add.sprite(0, 0, "wizard");
     this.player.setOrigin(0.5, 0.5);
     this.player.setDepth(1);
   }
@@ -328,7 +341,7 @@ export default class WorldScene extends Scene {
       collisionTilePropertyName: "collides",
       characters: [
         {
-          id: Sprites.PLAYER,
+          id: "player",
           sprite: this.player,
           walkingAnimationMapping: {
             up: {
@@ -416,12 +429,26 @@ export default class WorldScene extends Scene {
     // Handle room creation response
     this.socket.on(
       "roomCreated",
-      ({ roomId, playerId }: { roomId: string; playerId: string }) => {
+      ({
+        roomId,
+        playerId,
+        sprite,
+      }: {
+        roomId: string;
+        playerId: string;
+        sprite: string;
+      }) => {
         this.roomId = roomId;
         this.playerId = playerId;
+
+        // Set the player's sprite texture based on server assignment
+        this.player.setTexture(sprite);
+
         // Update the room code text
         this.roomCodeText.setText(`Room: ${roomId}`);
-        console.log(`Joined room ${roomId} as player ${playerId}`);
+        console.log(
+          `Joined room ${roomId} as player ${playerId} with sprite ${sprite}`
+        );
       }
     );
 
@@ -465,16 +492,24 @@ export default class WorldScene extends Scene {
         roomId,
         playerId,
         players,
+        sprite,
       }: {
         roomId: string;
         playerId: string;
         players: Record<string, Player>;
+        sprite: string;
       }) => {
         this.roomId = roomId;
         this.playerId = playerId;
+
+        // Set the player's sprite texture based on server assignment
+        this.player.setTexture(sprite);
+
         // Update the room code text
         this.roomCodeText.setText(`Room: ${roomId}`);
-        console.log(`Joined room ${roomId} as player ${playerId}`);
+        console.log(
+          `Joined room ${roomId} as player ${playerId} with sprite ${sprite}`
+        );
 
         // Create sprites for existing players
         Object.entries(players).forEach(([id, playerData]) => {
@@ -490,19 +525,48 @@ export default class WorldScene extends Scene {
       console.error(`Room error: ${message}`);
       this.roomCodeText.setText(`Error: ${message}`);
     });
+
+    // Handle chat messages from other players
+    this.socket.on("chatMessageReceived", (message: any) => {
+      console.log(
+        "Chat message received:",
+        message.message,
+        "groupId:",
+        message.groupId,
+        "our groupId:",
+        this.chatGroupId
+      );
+
+      // If we're not in proximity mode, ignore the message
+      if (!this.chatGroupId) return;
+
+      // Get the IDs from both group IDs to compare
+      const ourGroupIds = this.chatGroupId.split("-").sort();
+      const messageGroupIds = message.groupId.split("-").sort();
+
+      // Check if we share at least one player ID with the message group
+      // This ensures messages will transmit between connected players
+      const playerOverlap = ourGroupIds.some((id) =>
+        messageGroupIds.includes(id)
+      );
+
+      if (playerOverlap) {
+        useChatStore.getState().addMessage(message);
+      }
+    });
   }
 
   // Method to create/join a room
-  createOrJoinRoom(username: string, sprite: string) {
+  createOrJoinRoom(username: string) {
     if (this.socket) {
-      this.socket.emit("createRoom", { username, sprite });
+      this.socket.emit("createRoom", { username });
     }
   }
 
   // Method to join an existing room
-  joinRoom(roomId: string, username: string, sprite: string) {
+  joinRoom(roomId: string, username: string) {
     if (this.socket) {
-      this.socket.emit("joinRoom", { roomId, username, sprite });
+      this.socket.emit("joinRoom", { roomId, username });
       // Update the room code text immediately (will be confirmed when we get the roomJoined event)
       this.roomCodeText.setText(`Room: ${roomId}`);
     }
@@ -619,6 +683,145 @@ export default class WorldScene extends Scene {
         roomId: this.roomId,
         movement: { x, y, direction },
       });
+    }
+  }
+
+  checkAdjacentPlayers() {
+    if (!this.socket || !this.roomId || !this.playerId) return;
+
+    const playerPosition = this.gridEngine.getPosition("player");
+    if (!playerPosition) return;
+
+    // Store previous adjacent players for comparison
+    const previousAdjacentPlayers = new Map(this.adjacentPlayers);
+
+    // Clear current adjacent players
+    this.adjacentPlayers.clear();
+
+    // Direct adjacency check - players within 1 tile
+    this.remotePlayers.forEach((sprite, playerId) => {
+      const remoteCharId = `remote_${playerId}`;
+
+      if (this.gridEngine.hasCharacter(remoteCharId)) {
+        const remotePosition = this.gridEngine.getPosition(remoteCharId);
+
+        // Check if player is adjacent (Manhattan distance of 1)
+        const dx = Math.abs(remotePosition.x - playerPosition.x);
+        const dy = Math.abs(remotePosition.y - playerPosition.y);
+
+        if (dx + dy <= 1) {
+          // This player is adjacent, add to our map
+          this.adjacentPlayers.set(playerId, {
+            id: playerId,
+            x: remotePosition.x,
+            y: remotePosition.y,
+            direction: this.gridEngine.getFacingDirection(remoteCharId),
+            username: "Player",
+            sprite: "",
+          });
+        }
+      }
+    });
+
+    // Get the chat store
+    const chatStore = useChatStore.getState();
+
+    // Determine if we were or are now in proximity chat
+    const wasInProximityMode = !!this.chatGroupId;
+    const isNowInProximityMode = this.adjacentPlayers.size > 0;
+
+    // Handle transition into proximity mode
+    if (!wasInProximityMode && isNowInProximityMode) {
+      // Generate a group ID with only our ID and adjacent players
+      const playerIds = [
+        this.playerId,
+        ...Array.from(this.adjacentPlayers.keys()),
+      ].sort();
+      this.chatGroupId = playerIds.join("-");
+
+      // Update chat UI
+      chatStore.setProximityMode(true);
+      chatStore.setActiveGroupId(this.chatGroupId);
+
+      console.log(
+        "Started proximity chat with adjacent players:",
+        this.adjacentPlayers
+      );
+    }
+    // Handle transition out of proximity mode
+    else if (wasInProximityMode && !isNowInProximityMode) {
+      chatStore.setProximityMode(false);
+      chatStore.setActiveGroupId(null);
+      this.chatGroupId = null;
+
+      console.log("Left proximity chat - no adjacent players");
+    }
+    // Handle changes to the proximity group
+    else if (isNowInProximityMode) {
+      // Check if the adjacency has changed
+      let adjacencyChanged = false;
+
+      // Check if any player was added
+      for (const playerId of this.adjacentPlayers.keys()) {
+        if (!previousAdjacentPlayers.has(playerId)) {
+          adjacencyChanged = true;
+          break;
+        }
+      }
+
+      // Check if any player was removed
+      if (!adjacencyChanged) {
+        for (const playerId of previousAdjacentPlayers.keys()) {
+          if (!this.adjacentPlayers.has(playerId)) {
+            adjacencyChanged = true;
+            break;
+          }
+        }
+      }
+
+      // If adjacency changed, update the group ID
+      if (adjacencyChanged) {
+        const playerIds = [
+          this.playerId,
+          ...Array.from(this.adjacentPlayers.keys()),
+        ].sort();
+        const newGroupId = playerIds.join("-");
+
+        // Update group ID
+        this.chatGroupId = newGroupId;
+        chatStore.setActiveGroupId(this.chatGroupId);
+
+        console.log("Proximity chat group updated:", this.adjacentPlayers);
+      }
+    }
+  }
+
+  sendChatMessage(message: string) {
+    if (!this.socket || !this.roomId) return;
+
+    // Create the chat message
+    const chatMessage = {
+      id: Date.now().toString(),
+      playerId: this.playerId!,
+      username: this.username,
+      message,
+      timestamp: Date.now(),
+      isSelfOnly: !this.chatGroupId, // Mark as self-only if not in proximity chat
+    };
+
+    // Add message to local store
+    useChatStore.getState().addMessage(chatMessage);
+
+    // Only send to server if in proximity chat
+    if (this.chatGroupId) {
+      console.log("Sending chat message to group:", this.chatGroupId);
+      this.socket.emit("chatMessage", {
+        roomId: this.roomId,
+        groupId: this.chatGroupId,
+        message,
+      });
+    } else {
+      console.log("Message is self-only (no proximity chat active)");
     }
   }
 }

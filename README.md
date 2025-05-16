@@ -55,6 +55,7 @@ Victory isn’t guaranteed. Players must navigate complex social dynamics, strat
 
 ---                                                                                          
 
+
 ## Archetypes Overview
 
 Players embody 12 unique Archetypes, each with special abilities that define their playstyle and strategy path:
@@ -78,11 +79,13 @@ Each archetype influences whether a player tries to unlock the chest (Opener), b
 
 ---
 
+
 ## Game Goals and Mechanics
 
 One must lose oneself in the depths of the collective subconscious to return to the surface having defeated the Jungian shadow.
 
 ---
+
 
 ## Tech Stack
 
@@ -109,6 +112,19 @@ Powered by the Thirdweb Nebula API, this feature keeps players immersed, providi
 - Dynamic AI responses reacting to player moves and game states.
 
 ---
+
+
+## Run Locally
+
+### Terminal 1 (Nextjs client)
+(in root repo)
+npm run dev
+### Terminal 2 (Python Nebula Server)
+cd nebula-backend
+uvicorn app:app --reload --port 8000
+
+---
+
 
 ## Learn More
 

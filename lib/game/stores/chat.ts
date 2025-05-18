@@ -8,6 +8,7 @@ export interface ChatMessage {
   message: string;
   timestamp: number;
   isSelfOnly?: boolean; // Flag to indicate if message is only visible to self
+  isAi?: boolean; // Flag to indicate if message is from Nebula AI
 }
 
 interface ChatStore {

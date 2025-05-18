@@ -30,21 +30,6 @@ export const getCurrentPlayerTile = (scene: WorldScene) => {
 };
 
 export const getStartPosition = (scene: WorldScene) => {
-  const position = useUserDataStore.getState().position;
-  const facingDirection = position?.facingDirection || "down";
-
-  // If there's a saved position, use it
-  if (position?.x && position?.y) {
-    return {
-      startPosition: {
-        x: position.x,
-        y: position.y,
-      },
-      facingDirection,
-    };
-  }
-
-  // Default position if no saved position is found
   return {
     startPosition: {
       x: 8,

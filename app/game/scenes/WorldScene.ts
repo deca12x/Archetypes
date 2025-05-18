@@ -155,6 +155,24 @@ export default class WorldScene extends Scene {
   }
 
   create(): void {
+    // Make the game instance globally accessible
+    (window as any).__PHASER_GAME__ = this.game;
+
+    // Add event listener to canvas to handle focus restoration
+    const canvas = this.game.canvas;
+    canvas.addEventListener("click", () => {
+      // Find and blur any focused input elements
+      const activeElement = document.activeElement as HTMLElement;
+      if (activeElement && activeElement.tagName === "INPUT") {
+        activeElement.blur();
+      }
+
+      // Ensure keyboard is enabled for the game
+      if (this.input.keyboard) {
+        this.input.keyboard.enabled = true;
+      }
+    });
+
     this.initializePlayer();
     this.initializeTilemap();
     this.initializeCamera();
@@ -269,25 +287,14 @@ export default class WorldScene extends Scene {
 
       if (!isMoving) {
         const cursors = this.input.keyboard.createCursorKeys();
-        // Fix the error on lines 175-176 by using optional chaining and null checking
-        const keys = this.input.keyboard?.addKeys("W,S,A,D") as Record<
-          string,
-          { isDown: boolean } | null
-        >;
 
-        if ((cursors.left?.isDown || keys?.A?.isDown) && keys?.A != null) {
+        if (cursors.left?.isDown) {
           this.gridEngine.move("player", "left");
-        } else if (
-          (cursors.right?.isDown || keys?.D?.isDown) &&
-          keys?.D != null
-        ) {
+        } else if (cursors.right?.isDown) {
           this.gridEngine.move("player", "right");
-        } else if ((cursors.up?.isDown || keys?.W?.isDown) && keys?.W != null) {
+        } else if (cursors.up?.isDown) {
           this.gridEngine.move("player", "up");
-        } else if (
-          (cursors.down?.isDown || keys?.S?.isDown) &&
-          keys?.S != null
-        ) {
+        } else if (cursors.down?.isDown) {
           this.gridEngine.move("player", "down");
         }
       }
@@ -400,25 +407,24 @@ export default class WorldScene extends Scene {
       }
     });
 
-    this.input.keyboard?.on("keydown-SPACE", () => {
-      triggerUINextStep();
-    });
+    // Only add these keyboard controls if keyboard is enabled
+    if (this.input.keyboard?.enabled) {
+      this.input.keyboard.on("keydown-UP", () => {
+        triggerUIUp();
+      });
 
-    this.input.keyboard?.on("keydown-UP", () => {
-      triggerUIUp();
-    });
+      this.input.keyboard.on("keydown-DOWN", () => {
+        triggerUIDown();
+      });
 
-    this.input.keyboard?.on("keydown-DOWN", () => {
-      triggerUIDown();
-    });
+      this.input.keyboard.on("keydown-LEFT", () => {
+        triggerUILeft();
+      });
 
-    this.input.keyboard?.on("keydown-LEFT", () => {
-      triggerUILeft();
-    });
-
-    this.input.keyboard?.on("keydown-RIGHT", () => {
-      triggerUIRight();
-    });
+      this.input.keyboard.on("keydown-RIGHT", () => {
+        triggerUIRight();
+      });
+    }
   }
 
   // MULTIPLAYER METHODS
@@ -799,6 +805,9 @@ export default class WorldScene extends Scene {
   sendChatMessage(message: string) {
     if (!this.socket || !this.roomId) return;
 
+    // Check if we're in proximity chat with other players
+    const inProximityChat = this.chatGroupId !== null;
+
     // Create the chat message
     const chatMessage = {
       id: Date.now().toString(),
@@ -806,14 +815,14 @@ export default class WorldScene extends Scene {
       username: this.username,
       message,
       timestamp: Date.now(),
-      isSelfOnly: !this.chatGroupId, // Mark as self-only if not in proximity chat
+      isSelfOnly: !inProximityChat, // Mark as self-only if not in proximity chat
     };
 
-    // Add message to local store
+    // Always add message to local store for non-AI chat
     useChatStore.getState().addMessage(chatMessage);
 
     // Only send to server if in proximity chat
-    if (this.chatGroupId) {
+    if (inProximityChat) {
       console.log("Sending chat message to group:", this.chatGroupId);
       this.socket.emit("chatMessage", {
         roomId: this.roomId,
@@ -822,6 +831,8 @@ export default class WorldScene extends Scene {
       });
     } else {
       console.log("Message is self-only (no proximity chat active)");
+      // If proximity chat is not active, we could automatically route to Nebula here
+      // But that's handled in the ChatWindow component instead
     }
   }
 }

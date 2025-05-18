@@ -9,7 +9,7 @@ from thirdweb_ai.adapters.langchain import get_langchain_tools
 # Load environment variables
 load_dotenv()
 
-def main():
+def main(input_data):
     # insight = Insight(secret_key=os.getenv("THIRDWEB_SECRET_KEY"), chain_id=5000)
     nebula = Nebula(secret_key=os.getenv("THIRDWEB_SECRET_KEY"))
 
@@ -28,7 +28,6 @@ def main():
         ]
     )
 
-    # tools = get_langchain_tools(insight.get_tools() + nebula.get_tools())
     tools = get_langchain_tools(nebula.get_tools())
 
     for tool in tools:
@@ -37,8 +36,10 @@ def main():
     agent = create_tool_calling_agent(llm, tools, prompt)
     agent_executor = AgentExecutor(agent=agent, tools=tools, handle_parse_errors=True, verbose=True)
 
-    response = agent_executor.invoke({"input": "What are the archetypes?"})
-    print("Response:", response)
+    # Use the input_data if provided, otherwise use the default question
+    question = input_data.get("input")
+    response = agent_executor.invoke({"input": question})
+    return response.get("output", "No response generated")
 
 if __name__ == "__main__":
     main()

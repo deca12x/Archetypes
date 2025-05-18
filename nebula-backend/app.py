@@ -1,59 +1,44 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-import os
-import logging
 from dotenv import load_dotenv
-from langchain_adapter import NebulaAdapter
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+import os
+from langchain.agents import AgentExecutor, create_tool_calling_agent
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_openai import ChatOpenAI
+from thirdweb_ai import Insight, Nebula
+from thirdweb_ai.adapters.langchain import get_langchain_tools
 
 # Load environment variables
 load_dotenv()
 
-# Get API key
-THIRDWEB_SECRET_KEY = os.getenv("THIRDWEB_SECRET_KEY")
-if not THIRDWEB_SECRET_KEY:
-    raise ValueError("Missing THIRDWEB_SECRET_KEY environment variable")
+def main():
+    # insight = Insight(secret_key=os.getenv("THIRDWEB_SECRET_KEY"), chain_id=5000)
+    nebula = Nebula(secret_key=os.getenv("THIRDWEB_SECRET_KEY"))
 
-app = FastAPI()
+    # Declare the model
+    llm = ChatOpenAI(model="gpt-4o-mini")
 
-# Configure CORS to allow requests from your Next.js app
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Update based on your frontend URL
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                "You are Carl Jung. Answer questions about the human psyche fro his POV.",
+            ),
+            ("placeholder", "{chat_history}"),
+            ("human", "{input}"),
+            ("placeholder", "{agent_scratchpad}"),
+        ]
+    )
 
-# Initialize Nebula adapter
-nebula_adapter = NebulaAdapter(api_key=THIRDWEB_SECRET_KEY)
+    # tools = get_langchain_tools(insight.get_tools() + nebula.get_tools())
+    tools = get_langchain_tools(nebula.get_tools())
 
-class ChatRequest(BaseModel):
-    message: str
-    sessionId: str  # To maintain conversation context
+    for tool in tools:
+        print(f"Tool Name: {tool.name}, ToolDescription: {tool.description}")
 
-class ChatResponse(BaseModel):
-    response: str
+    agent = create_tool_calling_agent(llm, tools, prompt)
+    agent_executor = AgentExecutor(agent=agent, tools=tools, handle_parse_errors=True, verbose=True)
 
-@app.post("/api/nebula-chat", response_model=ChatResponse)
-async def chat_with_nebula(request: ChatRequest):
-    try:
-        logger.info(f"Received chat request: {request.message[:30]}...")
+    response = agent_executor.invoke({"input": "What are the archetypes?"})
+    print("Response:", response)
 
-        response = nebula_adapter.generate_response(
-            message=request.message,
-            session_id=request.sessionId
-        )
-
-        logger.info(f"Sending response: {response[:50]}...")
-
-        return {"response": response}
-    except Exception as e:
-        logger.error(f"Error in chat_with_nebula endpoint: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-# Run with: uvicorn app:app --reload
+if __name__ == "__main__":
+    main()

@@ -808,19 +808,6 @@ export default class WorldScene extends Scene {
     // Check if we're in proximity chat with other players
     const inProximityChat = this.chatGroupId !== null;
 
-    // Create the chat message
-    const chatMessage = {
-      id: Date.now().toString(),
-      playerId: this.playerId!,
-      username: this.username,
-      message,
-      timestamp: Date.now(),
-      isSelfOnly: !inProximityChat, // Mark as self-only if not in proximity chat
-    };
-
-    // Always add message to local store for non-AI chat
-    useChatStore.getState().addMessage(chatMessage);
-
     // Only send to server if in proximity chat
     if (inProximityChat) {
       console.log("Sending chat message to group:", this.chatGroupId);

@@ -5,6 +5,7 @@ export interface ChatMessage {
   id: string;
   playerId: string;
   username: string;
+  sprite?: string; // Add the sprite field
   message: string;
   timestamp: number;
   isSelfOnly?: boolean; // Flag to indicate if message is only visible to self

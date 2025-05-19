@@ -255,6 +255,7 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
           id: Date.now().toString(),
           playerId: socket.id,
           username: player.username,
+          sprite: player.sprite,
           message,
           timestamp: Date.now(),
           groupId,

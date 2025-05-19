@@ -50,22 +50,20 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (inputValue.trim()) {
+      // Always add the user message to chat first
+      addMessage({
+        id: Date.now().toString(),
+        playerId: playerId,
+        username: username,
+        message: inputValue,
+        timestamp: Date.now(),
+      });
+
       if (isProximityMode) {
         // In proximity mode, send message to other players
         onSendMessage(inputValue);
       } else {
         // Not in proximity mode, send message to Nebula
-        // First add the user message to chat
-        addMessage({
-          id: Date.now().toString(),
-          playerId: playerId,
-          username: username,
-          message: inputValue,
-          timestamp: Date.now(),
-          isAi: true, // Mark as part of AI conversation
-        });
-
-        // Then send to Nebula
         handleNebulaChat(inputValue);
       }
 
@@ -108,7 +106,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         id: Date.now().toString(),
         playerId: "nebula-ai",
         username: "Nebula",
-        message: data.response || "No response", // Fallback message if empty
+        message: data.response || "No response",
         timestamp: Date.now(),
         isAi: true,
       });
@@ -128,61 +126,23 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   };
 
-  // Filter messages based on chat mode
-  const filteredMessages = messages.filter((msg) => {
-    if (isProximityMode) {
-      // In proximity mode, only show non-AI messages
-      return !msg.isAi;
-    } else {
-      // In Nebula mode, only show AI messages
-      return msg.isAi;
-    }
-  });
-
-  console.log(
-    "Current messages:",
-    messages.map((m) => ({
-      id: m.id,
-      from: m.username,
-      content: m.message.substring(0, 20),
-      isAi: m.isAi,
-    }))
-  );
-  console.log(
-    "Filtered messages:",
-    filteredMessages.map((m) => ({
-      id: m.id,
-      from: m.username,
-      content: m.message.substring(0, 20),
-      isAi: m.isAi,
-    }))
-  );
+  const formatSpriteName = (sprite: string) => {
+    if (!sprite) return "";
+    // Capitalize first letter and add "The "
+    return "The " + sprite.charAt(0).toUpperCase() + sprite.slice(1);
+  };
 
   return (
     <div className="fixed bottom-4 right-4 w-80 bg-black bg-opacity-80 text-white rounded-lg shadow-lg overflow-hidden z-50">
-      <div
-        className={`p-2 ${
-          isProximityMode ? "bg-green-800" : "bg-purple-800"
-        } font-bold flex justify-between items-center`}
-      >
-        <span>{isProximityMode ? "Proximity Chat" : "Nebula AI Chat"}</span>
-        <div className="flex space-x-2">
-          {isProximityMode && (
-            <span className="text-xs bg-green-600 px-2 py-1 rounded">
-              Players Nearby
-            </span>
-          )}
-        </div>
-      </div>
       <div className="h-48 overflow-y-auto p-2 space-y-2">
-        {filteredMessages.length === 0 ? (
+        {messages.length === 0 ? (
           <div className="text-gray-400 text-center">
             {isProximityMode
               ? "You are near other players. Say hello!"
-              : "Ask Nebula anything about blockchain, crypto, web3, or gaming!"}
+              : "Ask Nebula anything about your subconscious."}
           </div>
         ) : (
-          filteredMessages.map((msg: ChatMessage) => (
+          messages.map((msg: ChatMessage) => (
             <div
               key={msg.id}
               className={`p-1 rounded ${
@@ -196,7 +156,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               }`}
             >
               <div className="font-bold text-xs">
-                {msg.username === username ? "You" : msg.username}
+                {msg.playerId === playerId
+                  ? "You"
+                  : msg.sprite
+                  ? formatSpriteName(msg.sprite)
+                  : msg.username}
                 {msg.isSelfOnly && " (only visible to you)"}
               </div>
               <div>{msg.message || "<empty message>"}</div>
@@ -222,14 +186,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             placeholder={
               isProximityMode
                 ? "Chat with nearby players..."
-                : "Ask Nebula about blockchain..."
+                : "Ask your subconscious mind..."
             }
           />
           <button
             type="submit"
-            className={`text-white px-3 py-1 rounded-r ${
-              isProximityMode ? "bg-green-600" : "bg-purple-600"
-            }`}
+            className="text-white px-3 py-1 rounded-r bg-purple-600"
           >
             Send
           </button>

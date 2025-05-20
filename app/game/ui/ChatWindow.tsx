@@ -156,11 +156,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               }`}
             >
               <div className="font-bold text-xs">
-                {msg.playerId === playerId
-                  ? "You"
-                  : msg.sprite
-                  ? formatSpriteName(msg.sprite)
-                  : msg.username}
+                {msg.sprite ? formatSpriteName(msg.sprite) : msg.username}
                 {msg.isSelfOnly && " (only visible to you)"}
               </div>
               <div>{msg.message || "<empty message>"}</div>

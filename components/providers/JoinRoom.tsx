@@ -68,11 +68,11 @@ export default function JoinRoom() {
         onClick={handleCreateRoom}
         className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
       >
-        Create New Room
+        New Game
       </button>
 
       <div className="flex flex-col space-y-2">
-        <label className="text-sm text-gray-200">Or Join Existing Room:</label>
+        <label className="text-sm text-gray-200">Or Join Existing Game:</label>
         <div className="flex">
           <input
             type="text"

@@ -1,7 +1,7 @@
 export enum Sprites {
   WIZARD = "wizard",
   EXPLORER = "explorer",
-  HERO = "hero",
+  HERO = "Hero",
   RULER = "ruler",
 }
 

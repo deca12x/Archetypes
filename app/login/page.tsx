@@ -17,11 +17,11 @@ export default function Login() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center">
       <div className="text-2xl font-bold mb-8">
-        Welcome to your Thirdweb Webapp
+        Archetypes of the Collective Unconscious
       </div>
       <ConnectWallet
         theme="light"
-        modalSize="wide"
+        modalSize="compact"
         welcomeScreen={{
           title: "Welcome to our app",
           subtitle: "Connect your wallet to get started",

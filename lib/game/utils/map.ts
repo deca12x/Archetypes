@@ -32,8 +32,8 @@ export const getCurrentPlayerTile = (scene: WorldScene) => {
 export const getStartPosition = (scene: WorldScene) => {
   return {
     startPosition: {
-      x: 8,
-      y: 8,
+      x: 5,
+      y: 5,
     },
     facingDirection: "down",
   };

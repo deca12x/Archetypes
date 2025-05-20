@@ -1,74 +1,136 @@
-# Next.js + Thirdweb Template
+                                                                                                                                  
+                                      %@@@       @@@@@@                                           
+                                    @@@@@@=      @@@@@+      #@%                                  
+                                     @@@@@@      @@@@@       @@@@@@                               
+                         :@@@@       %@@@@@      @@@@@      @@@@@@                                
+                         @@@@@@:      @@@@@      @@@@@      @@@@@        :                        
+                          @@@@@@+     .@@@@@     @@@@      @@@@@       :@@@@                      
+                           @@@@@@-     #@@@@     @@@@      @@@@       @@@@@@@@                    
+                 @@@=        @@@@@      @@@=     @@@@     @@@@*      @@@@@@@                      
+                @@@@@@=       @@@@@   %@@=       @@@@@@    @@@      @@@@@@                        
+                @@@@@@@@.      :@@ @@@@@@@       @@@@@@           %@@@@@          *               
+                  *@@@@@@@          @@@@@@*      @@@@@        @@@@@@@@#        -@@@@              
+                     @@@@@@@         @@@@@@      @@@@@       @@@@@@@@        @@@@@@@@             
+           :            @@@@@#        @@@@@+     @@@@:      @@@@@@@       %@@@@@@@@@              
+          @@@@@#          @@@@@=       @@@@@     @@@@      @@@@@@       @@@@@@@@@                 
+         @@@@@@@@@@*     @@@@@@@@=      @@@@     @@@#     @@@@@         @@@@@                     
+          *@@@@@@@@@@@%   :@@@@@@@@      #@             %@@@@           @@                        
+               @@@@@@@@      %@@@@@@@                    @@+         @@@@@         @@@@@@         
+                     :           @@@@@                           #@@@@@@@@@: %@@@@@@@@@@@.        
+                                   :*                         #@@@@@@@@@@@@@@@@@@@@@@@@@@@        
+       @@@@@@*       @@@@@@                                  @@@@@@@@=      @@@@@@.               
+       @@@@@@@@@@@@@@@@@@@@@@@@@@*          Archetypes                                                      
+       @@@@@@@@@@@@@@@@@@@@@@@@@@@@           of the                                                    
+                                            Collective                      .@@@@@@@@@@@@@        
+                                           Unconsciouss        @@@@@@@@@@@@@@@@@@@@@@@@@@@@        
+                                                              +@@@@@@@@@@@@@@@@@@@@@@@@@@@        
+            .@@@@@@@@       #@@@@@@@                                  @@@@@@         .@@@@        
+       #@@@@@@@@@@@@@@#@@@@@@@@@@@@                                                               
+        @@@@@@@@@@@:  @@@@@@@@@@                           @@@@@           @%                     
+        @@@@@          @@@@@@        =@@                    @@@@@@@+      @@@@@@@@@               
+                       @@:          @@@@@             @@      @@@@@@@@     @@@@@@@@@@@@*          
+                   +@@@@@         @@@@@%     @@@     @@@@      -@@@@@@@@+     @@@@@@@@@@          
+               :@@@@@@@@@       @@@@@@+     @@@@     @@@@@       =@@@@@@          %@@@@           
+            =@@@@@@@@@:       @@@@@@@*      @@@@      @@@@@        *@@@@@@                        
+            @@@@@@@@        @@@@@@@@%      @@@@@      @@@@@@         @@@@@@@#                     
+             +@@@         #@@@@@@@@.       @@@@@       @@@@@@          @@@@@@@@.                  
+                         @@@@@%   .       @@@@@@       @@@@@@@#@@@       @@@@@@@@.                
+                       @@@@@@      @@@@   @@@@@@        @@@   @@@@@        @@@@@@                 
+                     @@@@@@@      -@@@@     @@@@     @@@@      @@@@@#        @@%                  
+                   -@@@@@@@       @@@@+     @@@@     @@@@@      @@@@@@                            
+                     #@@@        @@@@@      @@@@      @@@@*      @@@@@@.                          
+                                @@@@@      %@@@@      @@@@@       @@@@@@=                         
+                               @@@@@@      @@@@@      @@@@@@       @@@@                           
+                              @@@@@@       @@@@@      +@@@@@%                                     
+                                 .*@       @@@@@       @@@@@@                                     
+                                          @@@@@@       %@*                                        
 
-This is a template for building web3 applications with Next.js and Thirdweb authentication.
+# Archetypes of the Collective Unconscious
 
-## Features
+A real-time multiplayer strategy RPG where players embody timeless archetypes, competing to unlock a shared crypto treasure chest.
+
+Built on **Mantle Network**, this game blends the thrill of tactical RPGs with the power of blockchain rewards.
+Unlike traditional RPGs, there are no turns. Every player acts independently with move cooldowns, forging alliances, making plays, and racing to reach the treasure — or sabotage it.  
+Victory isn’t guaranteed. Players must navigate complex social dynamics, strategic paths, and resource management to claim their share.
+
+---                                                                                          
+
+
+## Archetypes Overview
+
+Players embody 12 unique Archetypes, each with special abilities that define their playstyle and strategy path:
+
+| Archetype | Role | Unique Ability |
+|-----------|------|----------------|
+| Hero | Opener | Inspire Alliance — Bind with another player for shared victory. |
+| Explorer | Opener | Lockpick — Remove padlocks without needing a key. |
+| Innocent | Opener | Purify — Removes magical seals from the chest. |
+| Artist | Opener | Master Key — Craft special keys that bypass defenses. |
+| Ruler | Blocker | Royal Decree — Temporarily halt key forging. |
+| Caregiver | Blocker | Guardian Bond — Share victory through protection and support. |
+| Common Man | Blocker | Copycat — Mimics the last move used. |
+| Joker | Blocker | Fake Key — Plants deceptive keys to trap opponents. |
+| Wizard | Double Agent | Conjure Staff — Removes magical seals, shifts alliances. |
+| Outlaw | Double Agent | Backstab — Breaks alliances to form new ones. |
+| Lover | Double Agent | Soul Bond — Forms unbreakable victory pact. |
+| Sage | Double Agent | Dispel Magic — Neutralizes fake keys and seals. |
+
+Each archetype influences whether a player tries to unlock the chest (Opener), block progress (Blocker), or play both sides (Double Agent).
+
+---
+
+
+## Game Goals and Mechanics
+
+One must lose oneself in the depths of the collective subconscious to return to the surface having defeated the Jungian shadow.
+
+---
+
+
+## Tech Stack
 
 - Next.js 15 with App Router
-- Thirdweb authentication with social login
-- TypeScript support
-- Tailwind CSS for styling
-- Protected routes
-- Wallet connection management
+- Thirdweb SDK and Authentication
+- Mantle Network smart contract integration *
+- TypeScript
+- Tailwind CSS
+- Thirdweb Nebula AI Chat API, with separate Python server
+- GridEngine / Phaser 3 (Game logic integration)
 
-## Getting Started
+---
 
-1. Clone the repository
-2. Install dependencies:
 
-   ```bash
-   npm install
-   ```
+## Nebula Subconscious Chat Integration
 
-3. Create a `.env.local` file in the root directory and add your Thirdweb client ID:
+Players will converse with their Archetype's subconscious — an AI-driven companion that offers hints, lore, and reactive dialogue.
 
-   ```
-   NEXT_PUBLIC_THIRDWEB_CLIENT_ID=your_client_id_here
-   ```
+Powered by the Thirdweb Nebula API, this feature keeps players immersed, providing context-aware responses during gameplay.
 
-4. Run the development server:
+### Features
+- In-Game Thought Bubbles with hints and story elements.
+- Persistent Subconscious Chat Interface for guidance and immersion.
+- Dynamic AI responses reacting to player moves and game states.
 
-   ```bash
-   npm run dev
-   ```
+---
 
-5. Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-## Authentication
+## Run Locally
 
-This template uses Thirdweb for authentication. The following authentication methods are supported:
+### Terminal 1 (Nextjs client)
+(in root repo)
+npm run dev
+### Terminal 2 (Python Nebula Server)
+cd nebula-backend
+uvicorn app:app --reload --port 8000
 
-- Email
-- Phone
-- Passkey
-- Guest
-- Wallet
-- Google
-- Apple
-- Facebook
-- X (Twitter)
-- Discord
-- Telegram
-- Twitch
-- Farcaster
-- Github
-- Line
-- Coinbase
-- Steam
+---
 
-To configure which authentication methods are available, you'll need to set them up in your Thirdweb dashboard.
-
-## Project Structure
-
-- `app/` - Next.js app router pages and layouts
-- `components/` - Reusable React components
-- `public/` - Static assets
-- `lib/` - Utility functions and shared code
 
 ## Learn More
 
-To learn more about the technologies used in this template:
+* [Thirdweb Nebula](https://github.com/thirdweb-dev/ai/tree/main/python/examples/adapter_langchain)
+* [Phaser 3 Documentation](https://docs.phaser.io/phaser/getting-started/what-is-phaser)
+* [Socket.io v4 Documentation](https://socket.io/docs/v4/)
 
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Thirdweb Documentation](https://portal.thirdweb.com)
-- [Tailwind CSS Documentation](https://tailwindcss.com/docs)
+
+

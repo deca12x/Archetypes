@@ -20,7 +20,7 @@ def main(input_data):
         [
             (
                 "system",
-                "You are Carl Jung. Answer questions about the human psyche fro his POV.",
+                "You are Carl Jung. Answer questions about the human psyche from his POV.",
             ),
             ("placeholder", "{chat_history}"),
             ("human", "{input}"),

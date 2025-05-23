@@ -10,6 +10,7 @@ import { GAME_MOVES_ADDRESS, GAME_MOVES_ABI } from "@/lib/contracts/config";
 
 interface CheckRoomResponse {
   success: boolean;
+  message?: string;
 }
 
 interface RoomErrorResponse {
@@ -29,6 +30,7 @@ export default function JoinRoom() {
   const [roomCode, setRoomCode] = useState("");
   const [error, setError] = useState("");
   const [isWaitingForTx, setIsWaitingForTx] = useState(false);
+  const [isRoomValid, setIsRoomValid] = useState(false);
   const router = useRouter();
   const { socket, isConnected } = useSocket();
   const { address } = useAccount();
@@ -42,21 +44,29 @@ export default function JoinRoom() {
     abi: GAME_MOVES_ABI,
     eventName: "PlayerJoined",
     onLogs(logs) {
-      // Cast the logs to the correct type
       const typedLogs = logs as PlayerJoinedLog[];
       const relevantLog = typedLogs.find(
         (log) =>
           log.args.playerAddress?.toLowerCase() === address?.toLowerCase()
       );
 
-      if (relevantLog) {
-        if (roomCode) {
-          localStorage.setItem("gameAction", "join");
-          localStorage.setItem("roomCode", roomCode.toUpperCase());
-        } else {
-          localStorage.setItem("gameAction", "create");
-        }
-        router.push("/game");
+      if (relevantLog && socket) {
+        // After contract confirmation, join the socket room
+        socket.emit(
+          "joinRoom",
+          { roomId: roomCode.toUpperCase(), username: address },
+          (response: { success: boolean; message?: string }) => {
+            if (response.success) {
+              if (roomCode) {
+                localStorage.setItem("gameAction", "join");
+                localStorage.setItem("roomCode", roomCode.toUpperCase());
+                router.push("/game");
+              }
+            } else {
+              setError(response.message || "Failed to join room");
+            }
+          }
+        );
       }
     },
   });
@@ -77,10 +87,38 @@ export default function JoinRoom() {
     }
   };
 
+  const checkRoom = async (code: string): Promise<boolean> => {
+    if (!socket) return false;
+
+    return new Promise((resolve) => {
+      socket.emit(
+        "checkRoom",
+        { roomId: code },
+        (response: CheckRoomResponse) => {
+          setIsRoomValid(response.success);
+          if (!response.success) {
+            setError(response.message || "Invalid room or room is full");
+          }
+          resolve(response.success);
+        }
+      );
+    });
+  };
+
   const handleJoinRoom = async () => {
-    if (!roomCode || !socket) return;
+    if (!roomCode || !socket || !address) {
+      setError("Please enter a room code and ensure you're connected");
+      return;
+    }
+
+    setError("");
 
     try {
+      // Step 1: Check if room exists and has space
+      const isValid = await checkRoom(roomCode.toUpperCase());
+      if (!isValid) return;
+
+      // Step 2: Join the contract by paying the fee
       setIsWaitingForTx(true);
       await writeContract({
         address: GAME_MOVES_ADDRESS,
@@ -88,9 +126,11 @@ export default function JoinRoom() {
         functionName: "joinGame",
         value: parseEther("0.01"),
       });
+
+      // Step 3: The socket room join and redirect happens in the useWatchContractEvent
+      // hook after we receive confirmation of successful contract join
     } catch (err) {
       setError("Failed to join game contract");
-    } finally {
       setIsWaitingForTx(false);
     }
   };

@@ -23,6 +23,8 @@ import {
 } from "../../../lib/game/utils/ui";
 import { useUserDataStore } from "../../../lib/game/stores/userData";
 import { useChatStore } from "../../../lib/game/stores/chat";
+import { useGameMoves } from "@/components/game/GameMoves";
+import { useAccount } from "wagmi";
 
 // Using string literal types instead of importing Direction from grid-engine
 type Direction = "up" | "down" | "left" | "right";
@@ -134,6 +136,24 @@ export default class WorldScene extends Scene {
   chatGroupId: string | null = null;
   _lastAdjacentCheck: number = 0;
 
+  // Game moves properties
+  private gameMoves!: {
+    forgeKey: (artistAddress: string) => Promise<void>;
+    giftKeyToHero: (
+      artistAddress: string,
+      heroAddress: string
+    ) => Promise<void>;
+    unlockChest: (heroAddress: string) => Promise<void>;
+    conjureStaff: (wizardAddress: string) => Promise<void>;
+    giftStaffToInnocent: (
+      wizardAddress: string,
+      innocentAddress: string
+    ) => Promise<void>;
+    unsealChest: (innocentAddress: string) => Promise<void>;
+  };
+  private playerCharacter: string = ""; // Will store the character type
+  private gameEndText!: GameObjects.Text;
+
   constructor() {
     super("WorldScene");
   }
@@ -142,11 +162,28 @@ export default class WorldScene extends Scene {
     // Get socket from data passed from BootScene
     this.socket = data.socket;
 
+    // Get game moves from window object
+    if (typeof window !== "undefined") {
+      this.gameMoves = (window as any).__gameMoves;
+    }
+
     const daylightOverlay = this.add.graphics();
     daylightOverlay.setDepth(1000);
     daylightOverlay.fillRect(0, 0, this.scale.width, this.scale.height);
     daylightOverlay.setScrollFactor(0);
     this.daylightOverlay = daylightOverlay;
+
+    // Add game end text (hidden initially)
+    this.gameEndText = this.add.text(
+      this.cameras.main.centerX,
+      this.cameras.main.centerY,
+      "Game Over!",
+      { fontSize: "32px", color: "#ffffff" }
+    );
+    this.gameEndText.setOrigin(0.5);
+    this.gameEndText.setScrollFactor(0);
+    this.gameEndText.setDepth(1000);
+    this.gameEndText.setVisible(false);
 
     if (this.socket) {
       // Set up socket event handlers
@@ -208,6 +245,17 @@ export default class WorldScene extends Scene {
 
     // Join or create room based on stored action
     this.initializeMultiplayer();
+
+    // Listen for game over event
+    if (typeof window !== "undefined") {
+      window.addEventListener("gameOver", ((event: CustomEvent) => {
+        this.handleGameOver(
+          event.detail.finalPadlocks,
+          event.detail.finalSeals,
+          event.detail.winners
+        );
+      }) as EventListener);
+    }
   }
 
   initializeMultiplayer() {
@@ -423,6 +471,82 @@ export default class WorldScene extends Scene {
 
       this.input.keyboard.on("keydown-RIGHT", () => {
         triggerUIRight();
+      });
+
+      // Add F key for primary actions
+      this.input.keyboard.on("keydown-F", async () => {
+        if (isUIOpen() || !this.gameMoves || !this.playerId) return;
+
+        const position = this.gridEngine.getPosition("player");
+
+        // Check if player is near chest (10,10)
+        const isNearChest =
+          Math.abs(position.x - 10) <= 1 && Math.abs(position.y - 10) <= 1;
+
+        try {
+          switch (
+            this.player.texture.key // Use texture key instead of playerCharacter
+          ) {
+            case "artist":
+              await this.gameMoves.forgeKey(this.playerId);
+              break;
+            case "hero":
+              if (isNearChest) {
+                await this.gameMoves.unlockChest(this.playerId);
+              }
+              break;
+            case "wizard":
+              await this.gameMoves.conjureStaff(this.playerId);
+              break;
+            case "innocent":
+              if (isNearChest) {
+                await this.gameMoves.unsealChest(this.playerId);
+              }
+              break;
+          }
+        } catch (error) {
+          console.error("Error executing game move:", error);
+        }
+      });
+
+      // Add G key for gift actions
+      this.input.keyboard.on("keydown-G", async () => {
+        if (isUIOpen() || !this.gameMoves || !this.playerId) return;
+
+        // Get adjacent player if any
+        const adjacentPlayer = Array.from(this.adjacentPlayers.values())[0];
+        if (!adjacentPlayer) return;
+
+        try {
+          switch (this.player.texture.key) {
+            case "artist":
+              // Find hero in adjacent players
+              const heroPlayer = Array.from(this.adjacentPlayers.values()).find(
+                (p) => p.sprite === "hero"
+              );
+              if (heroPlayer) {
+                await this.gameMoves.giftKeyToHero(
+                  this.playerId,
+                  heroPlayer.id
+                );
+              }
+              break;
+            case "wizard":
+              // Find innocent in adjacent players
+              const innocentPlayer = Array.from(
+                this.adjacentPlayers.values()
+              ).find((p) => p.sprite === "innocent");
+              if (innocentPlayer) {
+                await this.gameMoves.giftStaffToInnocent(
+                  this.playerId,
+                  innocentPlayer.id
+                );
+              }
+              break;
+          }
+        } catch (error) {
+          console.error("Error executing gift move:", error);
+        }
       });
     }
   }
@@ -821,5 +945,24 @@ export default class WorldScene extends Scene {
       // If proximity chat is not active, we could automatically route to Nebula here
       // But that's handled in the ChatWindow component instead
     }
+  }
+
+  // Add method to handle game over
+  private handleGameOver(
+    finalPadlocks: number,
+    finalSeals: number,
+    winners: string[]
+  ) {
+    const gameOverText = this.add.text(
+      this.cameras.main.centerX,
+      this.cameras.main.centerY,
+      `Game Over!\nPadlocks: ${finalPadlocks}\nSeals: ${finalSeals}\nWinners: ${winners.join(
+        ", "
+      )}`,
+      { fontSize: "32px", color: "#ffffff", align: "center" }
+    );
+    gameOverText.setOrigin(0.5);
+    gameOverText.setScrollFactor(0);
+    gameOverText.setDepth(1000);
   }
 }

@@ -11,6 +11,7 @@ import { useChatStore } from "../../lib/game/stores/chat";
 import Loading from "./ui/Loading";
 import ChatWindow from "./ui/ChatWindow";
 import { useSocket } from "@/lib/hooks/useSocket";
+import { useGameMoves } from "@/components/game/GameMoves";
 
 const GameComponent = () => {
   const [game, setGame] = useState<PhaserGame>();
@@ -19,10 +20,14 @@ const GameComponent = () => {
   const { socket, isConnected } = useSocket();
   const [worldScene, setWorldScene] = useState<WorldScene | null>(null);
 
+  // Get game moves from hook
+  const gameMoves = useGameMoves();
+
   useEffect(() => {
     // Make the socket globally available to the Phaser game
     if (socket && typeof window !== "undefined") {
       (window as any).__gameSocket = socket;
+      (window as any).__gameMoves = gameMoves; // Make game moves available globally
 
       // Also store game action for the Phaser scenes to access
       if (localStorage.getItem("gameAction")) {
@@ -30,7 +35,7 @@ const GameComponent = () => {
         (window as any).__roomCode = localStorage.getItem("roomCode") || null;
       }
     }
-  }, [socket]);
+  }, [socket, gameMoves]);
 
   useEffect(() => {
     if (!gameContainerRef.current || !socket) return;

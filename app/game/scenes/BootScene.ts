@@ -5,6 +5,7 @@ import { UIEvents } from "../../../lib/game/constants/events";
 import { dispatch } from "../../../lib/game/utils/ui";
 import { useUIStore } from "../../../lib/game/stores/ui";
 import { useSocket } from "@/lib/hooks/useSocket";
+import { usePlayerCharacter } from "@/lib/hooks/usePlayerCharacter";
 
 export default class BootScene extends Scene {
   text!: GameObjects.Text;
@@ -24,9 +25,37 @@ export default class BootScene extends Scene {
   }
 
   launchGame(): void {
+    const playerAddress = (window as any).__playerAddress;
+
+    if (!playerAddress) {
+      console.error("No wallet connected");
+      return;
+    }
+
+    // Add loading state
+    const loadingText = this.add.text(
+      this.cameras.main.centerX,
+      this.cameras.main.centerY,
+      "Loading character data...",
+      { fontSize: "32px", color: "#fff" }
+    );
+    loadingText.setOrigin(0.5);
+
+    const playerCharData = usePlayerCharacter(playerAddress);
+
+    if (!playerCharData) {
+      loadingText.setText(
+        "Error: Not joined onchain. Please join the game first."
+      );
+      return;
+    }
+
     this.sound.pauseOnBlur = false;
-    // Pass socket to WorldScene
-    this.scene.start("WorldScene", { socket: this.socket });
+    this.scene.start("WorldScene", {
+      socket: this.socket,
+      playerAddress: playerAddress,
+      characterSprite: playerCharData.spriteName,
+    });
   }
 
   preload(): void {

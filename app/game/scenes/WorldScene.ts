@@ -23,8 +23,9 @@ import {
 } from "../../../lib/game/utils/ui";
 import { useUserDataStore } from "../../../lib/game/stores/userData";
 import { useChatStore } from "../../../lib/game/stores/chat";
-import { useGameMoves } from "@/components/game/GameMoves";
+import { useGameMoves } from "@/lib/hooks/useGameMoves";
 import { useAccount } from "wagmi";
+import { usePlayerCharacter } from "@/lib/hooks/usePlayerCharacter";
 
 // Using string literal types instead of importing Direction from grid-engine
 type Direction = "up" | "down" | "left" | "right";
@@ -112,6 +113,12 @@ export interface WorldReceivedData {
   };
 }
 
+interface WorldSceneData {
+  socket: Socket;
+  playerAddress: `0x${string}`;
+  characterSprite: string;
+}
+
 export default class WorldScene extends Scene {
   // Original properties
   gridEngine!: GridEngineInterface;
@@ -154,13 +161,21 @@ export default class WorldScene extends Scene {
   private playerCharacter: string = ""; // Will store the character type
   private gameEndText!: GameObjects.Text;
 
+  // Add new property
+  private playerAddress: `0x${string}` | undefined;
+
   constructor() {
     super("WorldScene");
   }
 
-  init(data: any) {
-    // Get socket from data passed from BootScene
+  init(data: WorldSceneData) {
     this.socket = data.socket;
+    this.playerAddress = data.playerAddress;
+
+    // Create player with assigned character sprite
+    this.player = this.add.sprite(0, 0, data.characterSprite);
+    this.player.setOrigin(0.5, 0.5);
+    this.player.setDepth(1);
 
     // Get game moves from window object
     if (typeof window !== "undefined") {
@@ -192,6 +207,17 @@ export default class WorldScene extends Scene {
   }
 
   create(): void {
+    if (!this.playerAddress) {
+      console.error("No player address provided");
+      return;
+    }
+
+    const playerCharData = usePlayerCharacter(this.playerAddress);
+    if (!playerCharData?.spriteName) {
+      console.error("Player has not joined the game onchain");
+      return;
+    }
+
     // Make the game instance globally accessible
     (window as any).__PHASER_GAME__ = this.game;
 

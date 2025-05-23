@@ -11,7 +11,7 @@ import { useChatStore } from "../../lib/game/stores/chat";
 import Loading from "./ui/Loading";
 import ChatWindow from "./ui/ChatWindow";
 import { useSocket } from "@/lib/hooks/useSocket";
-import { useGameMoves } from "@/components/game/GameMoves";
+import { useGameMoves } from "@/lib/hooks/useGameMoves";
 
 const GameComponent = () => {
   const [game, setGame] = useState<PhaserGame>();

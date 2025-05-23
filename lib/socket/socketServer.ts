@@ -32,7 +32,20 @@ export function generateRoomCode(): string {
 
 // Get all available character sprites
 function getAllSprites(): string[] {
-  return ["wizard", "explorer", "hero", "ruler"];
+  return [
+    "wizard",
+    "explorer",
+    "hero",
+    "ruler",
+    "sage",
+    "lover",
+    "outlaw",
+    "joker",
+    "commonman",
+    "caregiver",
+    "artist",
+    "innocent",
+  ];
 }
 
 // Initialize Socket.io server

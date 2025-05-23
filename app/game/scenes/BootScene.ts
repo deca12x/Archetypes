@@ -75,7 +75,20 @@ export default class BootScene extends Scene {
 
   loadSpriteSheets(): void {
     // Define available character sprites
-    const sprites = ["wizard", "explorer", "hero", "ruler"];
+    const sprites = [
+      "wizard",
+      "explorer",
+      "hero",
+      "ruler",
+      "sage",
+      "lover",
+      "outlaw",
+      "joker",
+      "commonman",
+      "caregiver",
+      "artist",
+      "innocent",
+    ];
 
     sprites.forEach((sprite) => {
       this.load.spritesheet(sprite, `assets/images/characters/${sprite}.png`, {

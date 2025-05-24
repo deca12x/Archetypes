@@ -84,7 +84,7 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
     });
 
     // Create a new game room
-    socket.on("createRoom", ({ username }: { username: string }) => {
+    socket.on("createRoom", ({ username }: { username: string }, callback) => {
       let roomId = generateRoomCode();
 
       // Ensure unique room ID
@@ -123,12 +123,21 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
       // Join socket to the room
       socket.join(roomId);
 
-      // Send room info back to client
+      // Send room info back to client through the callback
+      callback({
+        success: true,
+        roomId,
+        playerId: socket.id,
+        sprite: selectedSprite,
+      });
+
+      // Also emit the roomCreated event for other listeners
       socket.emit("roomCreated", {
         roomId,
         playerId: socket.id,
         sprite: selectedSprite,
       });
+
       console.log(
         `Room created: ${roomId} by player ${socket.id} with sprite ${selectedSprite}`
       );

@@ -12,13 +12,17 @@ import Loading from "./ui/Loading";
 import ChatWindow from "./ui/ChatWindow";
 import { useSocket } from "@/lib/hooks/useSocket";
 import { useGameMoves } from "@/lib/hooks/useGameMoves";
+import { useAccount } from "wagmi";
+import { usePlayerCharacter } from "@/lib/hooks/usePlayerCharacter";
 
 const GameComponent = () => {
   const [game, setGame] = useState<PhaserGame>();
   const { loading } = useUIStore();
   const gameContainerRef = useRef<HTMLDivElement>(null);
   const { socket, isConnected } = useSocket();
+  const { address } = useAccount();
   const [worldScene, setWorldScene] = useState<WorldScene | null>(null);
+  const characterData = usePlayerCharacter(address);
 
   // Get game moves from hook
   const gameMoves = useGameMoves();
@@ -27,7 +31,9 @@ const GameComponent = () => {
     // Make the socket globally available to the Phaser game
     if (socket && typeof window !== "undefined") {
       (window as any).__gameSocket = socket;
-      (window as any).__gameMoves = gameMoves; // Make game moves available globally
+      (window as any).__gameMoves = gameMoves;
+      (window as any).__playerAddress = address;
+      (window as any).__characterData = characterData;
 
       // Also store game action for the Phaser scenes to access
       if (localStorage.getItem("gameAction")) {
@@ -35,10 +41,10 @@ const GameComponent = () => {
         (window as any).__roomCode = localStorage.getItem("roomCode") || null;
       }
     }
-  }, [socket, gameMoves]);
+  }, [socket, gameMoves, address, characterData]);
 
   useEffect(() => {
-    if (!gameContainerRef.current || !socket) return;
+    if (!gameContainerRef.current || !socket || !characterData) return;
 
     // Make sure any previous instance is destroyed
     if (game) {
@@ -95,7 +101,7 @@ const GameComponent = () => {
     return () => {
       newGame.destroy(true);
     };
-  }, [gameContainerRef.current, socket]);
+  }, [gameContainerRef.current, socket, characterData]);
 
   // Handle chat message sending
   const handleSendMessage = (message: string) => {

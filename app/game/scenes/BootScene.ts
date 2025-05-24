@@ -26,27 +26,21 @@ export default class BootScene extends Scene {
 
   launchGame(): void {
     const playerAddress = (window as any).__playerAddress;
+    const playerCharacter = (window as any).__playerCharacter;
 
     if (!playerAddress) {
       console.error("No wallet connected");
       return;
     }
 
-    // Add loading state
-    const loadingText = this.add.text(
-      this.cameras.main.centerX,
-      this.cameras.main.centerY,
-      "Loading character data...",
-      { fontSize: "32px", color: "#fff" }
-    );
-    loadingText.setOrigin(0.5);
-
-    const playerCharData = usePlayerCharacter(playerAddress);
-
-    if (!playerCharData) {
-      loadingText.setText(
-        "Error: Not joined onchain. Please join the game first."
+    if (!playerCharacter) {
+      const loadingText = this.add.text(
+        this.cameras.main.centerX,
+        this.cameras.main.centerY,
+        "Error: Not joined onchain. Please join the game first.",
+        { fontSize: "32px", color: "#fff" }
       );
+      loadingText.setOrigin(0.5);
       return;
     }
 
@@ -54,7 +48,7 @@ export default class BootScene extends Scene {
     this.scene.start("WorldScene", {
       socket: this.socket,
       playerAddress: playerAddress,
-      characterSprite: playerCharData.spriteName,
+      characterSprite: playerCharacter.spriteName,
     });
   }
 

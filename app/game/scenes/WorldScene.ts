@@ -164,6 +164,14 @@ export default class WorldScene extends Scene {
   // Add new property
   private playerAddress: `0x${string}` | undefined;
 
+  // Add at the top of the class with other properties
+  private readonly CHEST_POSITION = { x: 10, y: 10 };
+
+  // Add these new properties
+  private mapBg!: Phaser.GameObjects.Image;
+  private chest!: Phaser.GameObjects.Image;
+  private readonly scaleFactor: number = 3;
+
   constructor() {
     super("WorldScene");
   }
@@ -212,8 +220,8 @@ export default class WorldScene extends Scene {
       return;
     }
 
-    const playerCharData = usePlayerCharacter(this.playerAddress);
-    if (!playerCharData?.spriteName) {
+    const playerCharacter = (window as any).__playerCharacter;
+    if (!playerCharacter?.spriteName) {
       console.error("Player has not joined the game onchain");
       return;
     }
@@ -400,6 +408,43 @@ export default class WorldScene extends Scene {
       .forEach((layer) => {
         this.tilemap.createLayer(layer, all_tilesets);
       });
+
+    // Add the new map background scaling code
+    const mapTexture = this.textures.get("brute_map").getSourceImage();
+    const mapWidth = mapTexture.width;
+    const mapHeight = mapTexture.height;
+    const scaledWidth = mapWidth * this.scaleFactor;
+    const scaledHeight = mapHeight * this.scaleFactor;
+
+    this.mapBg = this.add
+      .image(scaledWidth / 2, scaledHeight / 2, "brute_map")
+      .setOrigin(0.5, 0.5)
+      .setDepth(1)
+      .setScale(this.scaleFactor)
+      .setScrollFactor(1);
+
+    // Make existing tilemap layers transparent
+    if (this.tilemap && this.tilemap.layers) {
+      this.tilemap.layers.forEach((layerData) => {
+        const layer = this.tilemap.getLayer(layerData.name)?.tilemapLayer;
+        if (layer) {
+          layer.setAlpha(0);
+        }
+      });
+    }
+
+    // Add the chest
+    const chestX = 0;
+    const chestY = scaledHeight;
+    this.chest = this.add
+      .image(chestX, chestY, "brute_chest")
+      .setOrigin(0, 1)
+      .setDepth(15)
+      .setScale(0.15)
+      .setScrollFactor(1);
+
+    // Update camera bounds to match the new map size
+    this.cameras.main.setBounds(0, 0, scaledWidth, scaledHeight, true);
   }
 
   initializePlayer() {
@@ -505,19 +550,19 @@ export default class WorldScene extends Scene {
 
         const position = this.gridEngine.getPosition("player");
 
-        // Check if player is near chest (10,10)
+        // Add chest position check
         const isNearChest =
-          Math.abs(position.x - 10) <= 1 && Math.abs(position.y - 10) <= 1;
+          Math.abs(position.x - this.CHEST_POSITION.x) <= 1 &&
+          Math.abs(position.y - this.CHEST_POSITION.y) <= 1;
 
         try {
-          switch (
-            this.player.texture.key // Use texture key instead of playerCharacter
-          ) {
+          switch (this.player.texture.key) {
             case "artist":
               await this.gameMoves.forgeKey(this.playerId);
               break;
             case "hero":
               if (isNearChest) {
+                // Only allow unlock if near chest
                 await this.gameMoves.unlockChest(this.playerId);
               }
               break;
@@ -526,6 +571,7 @@ export default class WorldScene extends Scene {
               break;
             case "innocent":
               if (isNearChest) {
+                // Only allow unseal if near chest
                 await this.gameMoves.unsealChest(this.playerId);
               }
               break;
@@ -990,5 +1036,10 @@ export default class WorldScene extends Scene {
     gameOverText.setOrigin(0.5);
     gameOverText.setScrollFactor(0);
     gameOverText.setDepth(1000);
+  }
+
+  preload() {
+    this.load.image("brute_map", "assets/tilesets/map.png");
+    this.load.image("brute_chest", "assets/images/tilesets/chest.png");
   }
 }

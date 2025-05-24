@@ -3,28 +3,38 @@ import { io, Socket } from "socket.io-client";
 
 export function useSocket() {
   const [socket, setSocket] = useState<Socket | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    // Connect to the main server port without path specification
+    // Connect to the main server port with explicit configuration
     const socketInstance = io({
-      transports: ["websocket", "polling"], // Allow both for better reliability
+      transports: ["websocket", "polling"],
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 20000,
+      path: "/socket.io/",
+      autoConnect: true,
     });
 
-    // Set up event listeners
+    // Add handlers for debugging connection issues
     socketInstance.on("connect", () => {
-      setIsConnected(true);
-      console.log("Socket connected:", socketInstance.id);
+      console.log(`Socket connected successfully [id=${socketInstance.id}]`);
     });
 
-    socketInstance.on("disconnect", () => {
-      setIsConnected(false);
-      console.log("Socket disconnected");
+    socketInstance.on("connect_error", (error) => {
+      console.error("Socket connection error:", error.message);
+      // If websocket fails, socket.io will automatically try polling
+      console.log(
+        "Current transport:",
+        socketInstance.io.engine.transport.name
+      );
     });
 
-    socketInstance.on("connect_error", (err) => {
-      console.error("Socket connection error:", err);
-      setIsConnected(false);
+    socketInstance.on("disconnect", (reason) => {
+      console.log(`Socket disconnected: ${reason}`);
+      if (reason === "io server disconnect") {
+        // Server initiated disconnect, try reconnecting
+        socketInstance.connect();
+      }
     });
 
     // Save socket instance
@@ -32,9 +42,12 @@ export function useSocket() {
 
     // Clean up on unmount
     return () => {
-      socketInstance.disconnect();
+      if (socketInstance.connected) {
+        socketInstance.disconnect();
+      }
     };
   }, []);
 
-  return { socket, isConnected };
+  // Use the socket's own connected property instead of maintaining our own state
+  return { socket, isConnected: socket?.connected ?? false };
 }

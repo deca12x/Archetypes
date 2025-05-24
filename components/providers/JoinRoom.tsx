@@ -72,18 +72,28 @@ export default function JoinRoom() {
   });
 
   const handleCreateRoom = async () => {
+    if (!socket || !address) {
+      setError("Please ensure you're connected");
+      return;
+    }
+
+    setError("");
     try {
-      setIsWaitingForTx(true);
-      await writeContract({
-        address: GAME_MOVES_ADDRESS,
-        abi: GAME_MOVES_ABI,
-        functionName: "joinGame",
-        value: parseEther("0.01"),
-      });
+      socket.emit(
+        "createRoom",
+        { username: address },
+        (response: { success: boolean; roomId?: string; message?: string }) => {
+          if (response.success && response.roomId) {
+            localStorage.setItem("gameAction", "create");
+            localStorage.setItem("roomCode", response.roomId);
+            router.push("/game");
+          } else {
+            setError(response.message || "Failed to create room");
+          }
+        }
+      );
     } catch (err) {
-      setError("Failed to join game contract");
-    } finally {
-      setIsWaitingForTx(false);
+      setError("Failed to create game room");
     }
   };
 
@@ -145,10 +155,14 @@ export default function JoinRoom() {
 
       <button
         onClick={handleCreateRoom}
-        disabled={isPending || isWaitingForTx}
+        disabled={!isConnected || !address}
         className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded disabled:bg-gray-400"
       >
-        {isPending ? "Joining Game..." : "New Game"}
+        {!isConnected
+          ? "Connecting to server..."
+          : !address
+          ? "Connect Wallet"
+          : "New Game"}
       </button>
 
       <div className="flex flex-col space-y-2">

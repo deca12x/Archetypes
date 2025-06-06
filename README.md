@@ -125,7 +125,7 @@ Powered by the Thirdweb Nebula API, this feature keeps players immersed, providi
 npm run dev
 ### Terminal 2 (Python Nebula Server)
 cd nebula-backend
-uvicorn uvicorn server:app --reload
+uvicorn server:app --reload
 
 ---
 

@@ -54,6 +54,7 @@ const GameComponent = () => {
         default: "arcade",
         arcade: {
           debug: false,
+          gravity: { x: 0, y: 0 }
         },
       },
       plugins: {
@@ -66,6 +67,7 @@ const GameComponent = () => {
         ],
       },
       pixelArt: true,
+      backgroundColor: "#000000",
     });
 
     setGame(newGame);

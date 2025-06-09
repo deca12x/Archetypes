@@ -113,10 +113,10 @@ export interface WorldReceivedData {
 export default class WorldScene extends Scene {
   // Original properties
   gridEngine!: GridEngineInterface;
-  player!: GameObjects.Sprite;
+  player!: Phaser.Physics.Arcade.Sprite;
   speed: number = 10;
   tilemap!: Tilemaps.Tilemap;
-  map: Maps = Maps.PALLET_TOWN;
+  mapKey: string = "maptest"; // Default to maptest
   daylightOverlay!: GameObjects.Graphics;
   cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   enterKey!: Phaser.Input.Keyboard.Key;
@@ -134,13 +134,17 @@ export default class WorldScene extends Scene {
   chatGroupId: string | null = null;
   _lastAdjacentCheck: number = 0;
 
+  private groundLayer!: Phaser.Tilemaps.TilemapLayer;
+  private worldLayer!: Phaser.Tilemaps.TilemapLayer;
+
   constructor() {
     super("WorldScene");
   }
 
   init(data: any) {
-    // Get socket from data passed from BootScene
+    // Get socket and mapKey from data passed from BootScene
     this.socket = data.socket;
+    this.mapKey = data.mapKey || "maptest";
 
     const daylightOverlay = this.add.graphics();
     daylightOverlay.setDepth(1000);
@@ -302,101 +306,67 @@ export default class WorldScene extends Scene {
   }
 
   initializeTilemap(): void {
-    this.tilemap = this.make.tilemap({ key: this.map });
+    // Create the tilemap
+    this.tilemap = this.make.tilemap({ key: "world" });
 
-    // Add our custom tileset
-    const maptest = this.tilemap.addTilesetImage(Tilesets.MAPTEST);
+    // Add tileset
+    const maptestTileset = this.tilemap.addTilesetImage("maptest", "maptest");
 
-    if (!maptest) {
-      console.error('Failed to load maptest tileset');
+    if (!maptestTileset) {
+      console.error('Failed to load tileset');
       return;
     }
 
-    // Create layers in the correct order for z-index
-    const background = this.tilemap.createLayer("Background", [maptest]);
-    const sand = this.tilemap.createLayer("Sand", [maptest]);
-    const rocks = this.tilemap.createLayer("Rocks", [maptest]);
-    const grass = this.tilemap.createLayer("Grass", [maptest]);
-    const cliff = this.tilemap.createLayer("Cliff", [maptest]);
-    const buildings = this.tilemap.createLayer("Buildings", [maptest]);
-    const treesBack = this.tilemap.createLayer("Trees back", [maptest]);
-    const bridgeHorizontal = this.tilemap.createLayer("Bridge - horizontal", [maptest]);
-    const bridgeVertical = this.tilemap.createLayer("Bridge - vertical", [maptest]);
-    const stairs = this.tilemap.createLayer("Stairs", [maptest]);
-    const shadows = this.tilemap.createLayer("Shadows", [maptest]);
-    const smallRocks = this.tilemap.createLayer("Small rocks", [maptest]);
-    const treesFront = this.tilemap.createLayer("Trees front", [maptest]);
-    const miscs = this.tilemap.createLayer("Miscs", [maptest]);
+    // Create layer
+    const backgroundLayer = this.tilemap.createLayer("Background", maptestTileset);
 
-    if (!background || !sand || !rocks || !grass || !cliff || !buildings || 
-        !treesBack || !bridgeHorizontal || !bridgeVertical || !stairs || 
-        !shadows || !smallRocks || !treesFront || !miscs) {
-      console.error('Failed to create layers');
+    if (!backgroundLayer) {
+      console.error('Failed to create layer');
       return;
     }
 
-    // Set collision on the appropriate layers
-    rocks.setCollisionByProperty({ collider: true });
-    buildings.setCollisionByProperty({ collider: true });
-    cliff.setCollisionByProperty({ collider: true });
-    bridgeHorizontal.setCollisionByProperty({ collider: true });
-    bridgeVertical.setCollisionByProperty({ collider: true });
+    // Set world bounds
+    this.physics.world.setBounds(0, 0, this.tilemap.widthInPixels, this.tilemap.heightInPixels);
+
+    // Set up camera
+    this.cameras.main.setBounds(0, 0, this.tilemap.widthInPixels, this.tilemap.heightInPixels);
+    this.cameras.main.setZoom(1);
+
+    // Set up collision between player and background layer
+    if (this.player) {
+      this.physics.add.collider(this.player, backgroundLayer);
+    }
   }
 
   initializePlayer() {
-    this.cursors =
-      this.input?.keyboard?.createCursorKeys() as Phaser.Types.Input.Keyboard.CursorKeys;
-    this.enterKey = this.input?.keyboard?.addKey(
-      "ENTER"
-    ) as Phaser.Input.Keyboard.Key;
+    // Create player sprite
+    this.player = this.physics.add.sprite(100, 100, "player");
+    this.player.setCollideWorldBounds(true);
+    this.player.setScale(1.33); // Scale up to match map tile size (32/24 = 1.33)
+    this.player.play('player_idle');
 
-    // Initially create with a placeholder sprite - will be updated when assigned by server
-    this.player = this.add.sprite(0, 0, "wizard");
-    this.player.setOrigin(0.5, 0.5);
-    this.player.setDepth(1);
+    // Set up camera to follow player
+    this.cameras.main.startFollow(this.player);
   }
 
   initializeGrid(): void {
-    const { startPosition, facingDirection } = getStartPosition(this);
-
-    const gridEngineConfig: GridEngineConfig = {
-      collisionTilePropertyName: "collider",
+    // Initialize GridEngine
+    this.gridEngine.create(this.tilemap, {
       characters: [
         {
           id: "player",
           sprite: this.player,
           walkingAnimationMapping: {
-            up: {
-              leftFoot: 9,
-              standing: 10,
-              rightFoot: 11,
-            },
-            down: {
-              leftFoot: 0,
-              standing: 1,
-              rightFoot: 2,
-            },
-            left: {
-              leftFoot: 3,
-              standing: 4,
-              rightFoot: 5,
-            },
-            right: {
-              leftFoot: 6,
-              standing: 7,
-              rightFoot: 8,
-            },
+            up: { leftFoot: 27, standing: 28, rightFoot: 29 },
+            down: { leftFoot: 0, standing: 1, rightFoot: 2 },
+            left: { leftFoot: 9, standing: 10, rightFoot: 11 },
+            right: { leftFoot: 9, standing: 10, rightFoot: 11 }
           },
-          startPosition,
-          facingDirection: facingDirection as Direction,
-          speed: this.speed,
-          charLayer: "Background"
-        },
-      ],
-    };
-
-    // @ts-ignore - GridEngine types are incomplete
-    this.gridEngine.create(this.tilemap, gridEngineConfig);
+          startPosition: { x: 5, y: 5 },
+          speed: 4
+        }
+      ]
+    });
   }
 
   initializeCamera(): void {

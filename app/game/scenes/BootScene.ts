@@ -5,28 +5,29 @@ import { UIEvents } from "../../../lib/game/constants/events";
 import { dispatch } from "../../../lib/game/utils/ui";
 import { useUIStore } from "../../../lib/game/stores/ui";
 import { useSocket } from "@/lib/hooks/useSocket";
+import { Socket } from "socket.io-client";
 
 export default class BootScene extends Scene {
   text!: GameObjects.Text;
-  private socket: any = null;
+  private socket: Socket | null = null;
+  private mapKey: string = "world";
 
   constructor() {
-    super("Boot");
+    super("BootScene");
   }
 
-  init() {
-    // Initialize socket connection
-    // This gets a reference to our socket instance from the hook
-    if (typeof window !== "undefined") {
-      // We need to get the socket somehow - one approach is to make it a global in the client browser
-      this.socket = (window as any).__gameSocket;
-    }
+  init(data: any) {
+    this.socket = data.socket;
+    this.mapKey = data.mapKey || "world";
   }
 
   launchGame(): void {
     this.sound.pauseOnBlur = false;
     // Pass socket to WorldScene
-    this.scene.start("WorldScene", { socket: this.socket });
+    this.scene.start("WorldScene", { 
+      socket: this.socket,
+      mapKey: this.mapKey // Using map.json as our main map
+    });
   }
 
   preload(): void {
@@ -45,10 +46,6 @@ export default class BootScene extends Scene {
       console.error("Error loading asset:", file.src);
     });
 
-    this.loadImages();
-    this.loadSpriteSheets();
-    this.loadMaps();
-
     // Create loading text
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
@@ -62,36 +59,60 @@ export default class BootScene extends Scene {
       } as any,
     });
     loadingText.setOrigin(0.5, 0.5);
+
+    // Load all required assets
+    this.loadImages();
+    this.loadSpriteSheets();
+    this.loadMaps();
   }
 
   loadImages(): void {
-    console.log("Loading tileset:", Tilesets.MAPTEST);
-    this.load.image(Tilesets.MAPTEST, `assets/tilesets/${Tilesets.MAPTEST}.png`);
-  }
+    // Load map
+    this.load.tilemapTiledJSON("world", "/assets/maps/custom_map.json");
 
-  loadMaps(): void {
-    const maps = Object.values(Maps);
-    console.log("Loading maps:", maps);
+    // Load tileset
+    this.load.image("maptest", "/assets/tilesets/maptest.png");
 
-    for (const map of maps) {
-      console.log("Loading map:", map);
-      this.load.tilemapTiledJSON(map, `assets/maps/${map}.json`);
-    }
-  }
-
-  loadSpriteSheets(): void {
-    // Define available character sprites
-    const sprites = ["wizard", "explorer", "hero", "ruler"];
-    console.log("Loading sprites:", sprites);
-
-    sprites.forEach((sprite) => {
-      console.log("Loading sprite:", sprite);
-      this.load.spritesheet(sprite, `assets/images/characters/${sprite}.png`, {
-        frameWidth: PLAYER_SIZE.width,
-        frameHeight: PLAYER_SIZE.height,
-      });
+    // Load player sprite
+    this.load.spritesheet("player", "/assets/images/characters/explorer.png", {
+      frameWidth: 24,
+      frameHeight: 48
     });
   }
 
-  // [Rest of the code remains the same]
+  loadMaps(): void {
+    // Load the map
+    this.load.tilemapTiledJSON("map", "/assets/maps/map.json");
+  }
+
+  loadSpriteSheets(): void {
+    // Load player sprite
+    this.load.spritesheet("player", "/assets/images/characters/wizard.png", {
+      frameWidth: PLAYER_SIZE.width,
+      frameHeight: PLAYER_SIZE.height,
+    });
+  }
+
+  create(): void {
+    // Create animations for the player
+    this.anims.create({
+      key: 'player_idle',
+      frames: this.anims.generateFrameNumbers('player', { start: 0, end: 3 }),
+      frameRate: 8,
+      repeat: -1
+    });
+
+    this.anims.create({
+      key: 'player_walk',
+      frames: this.anims.generateFrameNumbers('player', { start: 4, end: 11 }),
+      frameRate: 12,
+      repeat: -1
+    });
+
+    // Start the world scene
+    this.scene.start("WorldScene", {
+      socket: this.socket,
+      mapKey: this.mapKey
+    });
+  }
 }

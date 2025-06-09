@@ -31,12 +31,18 @@ export default class BootScene extends Scene {
 
   preload(): void {
     this.load.on("progress", (value: number) => {
+      console.log(`Loading progress: ${value * 100}%`);
       dispatch<number>(UIEvents.LOADING_PROGRESS, value);
     });
 
     this.load.on("complete", () => {
+      console.log("All assets loaded successfully");
       useUIStore.getState().setLoading(false);
       this.launchGame();
+    });
+
+    this.load.on("loaderror", (file: any) => {
+      console.error("Error loading asset:", file.src);
     });
 
     this.loadImages();
@@ -59,16 +65,16 @@ export default class BootScene extends Scene {
   }
 
   loadImages(): void {
-    // Tilesets
-    Object.values(Tilesets).forEach((tileset) => {
-      this.load.image(tileset, `assets/tilesets/${tileset}.png`);
-    });
+    console.log("Loading tileset:", Tilesets.MAPTEST);
+    this.load.image(Tilesets.MAPTEST, `assets/tilesets/${Tilesets.MAPTEST}.png`);
   }
 
   loadMaps(): void {
     const maps = Object.values(Maps);
+    console.log("Loading maps:", maps);
 
     for (const map of maps) {
+      console.log("Loading map:", map);
       this.load.tilemapTiledJSON(map, `assets/maps/${map}.json`);
     }
   }
@@ -76,8 +82,10 @@ export default class BootScene extends Scene {
   loadSpriteSheets(): void {
     // Define available character sprites
     const sprites = ["wizard", "explorer", "hero", "ruler"];
+    console.log("Loading sprites:", sprites);
 
     sprites.forEach((sprite) => {
+      console.log("Loading sprite:", sprite);
       this.load.spritesheet(sprite, `assets/images/characters/${sprite}.png`, {
         frameWidth: PLAYER_SIZE.width,
         frameHeight: PLAYER_SIZE.height,

@@ -304,28 +304,43 @@ export default class WorldScene extends Scene {
   initializeTilemap(): void {
     this.tilemap = this.make.tilemap({ key: this.map });
 
-    // Add tilesets - using the approach from the client code
-    const all_tilesets = Object.values(Tilesets).reduce(
-      (acc: Tilemaps.Tileset[], value: Tilesets) => {
-        if (this.tilemap.tilesets.find(({ name }) => name === value)) {
-          const tileset = this.tilemap.addTilesetImage(value);
+    // Add our custom tileset
+    const maptest = this.tilemap.addTilesetImage(Tilesets.MAPTEST);
 
-          if (tileset) {
-            acc = [...acc, tileset];
-          }
-        }
-
-        return acc;
-      },
-      []
-    );
+    if (!maptest) {
+      console.error('Failed to load maptest tileset');
+      return;
+    }
 
     // Create layers in the correct order for z-index
-    Object.values(Layers)
-      .filter((layer) => layer !== Layers.OBJECTS)
-      .forEach((layer) => {
-        this.tilemap.createLayer(layer, all_tilesets);
-      });
+    const background = this.tilemap.createLayer("Background", [maptest]);
+    const sand = this.tilemap.createLayer("Sand", [maptest]);
+    const rocks = this.tilemap.createLayer("Rocks", [maptest]);
+    const grass = this.tilemap.createLayer("Grass", [maptest]);
+    const cliff = this.tilemap.createLayer("Cliff", [maptest]);
+    const buildings = this.tilemap.createLayer("Buildings", [maptest]);
+    const treesBack = this.tilemap.createLayer("Trees back", [maptest]);
+    const bridgeHorizontal = this.tilemap.createLayer("Bridge - horizontal", [maptest]);
+    const bridgeVertical = this.tilemap.createLayer("Bridge - vertical", [maptest]);
+    const stairs = this.tilemap.createLayer("Stairs", [maptest]);
+    const shadows = this.tilemap.createLayer("Shadows", [maptest]);
+    const smallRocks = this.tilemap.createLayer("Small rocks", [maptest]);
+    const treesFront = this.tilemap.createLayer("Trees front", [maptest]);
+    const miscs = this.tilemap.createLayer("Miscs", [maptest]);
+
+    if (!background || !sand || !rocks || !grass || !cliff || !buildings || 
+        !treesBack || !bridgeHorizontal || !bridgeVertical || !stairs || 
+        !shadows || !smallRocks || !treesFront || !miscs) {
+      console.error('Failed to create layers');
+      return;
+    }
+
+    // Set collision on the appropriate layers
+    rocks.setCollisionByProperty({ collider: true });
+    buildings.setCollisionByProperty({ collider: true });
+    cliff.setCollisionByProperty({ collider: true });
+    bridgeHorizontal.setCollisionByProperty({ collider: true });
+    bridgeVertical.setCollisionByProperty({ collider: true });
   }
 
   initializePlayer() {
@@ -345,7 +360,7 @@ export default class WorldScene extends Scene {
     const { startPosition, facingDirection } = getStartPosition(this);
 
     const gridEngineConfig: GridEngineConfig = {
-      collisionTilePropertyName: "collides",
+      collisionTilePropertyName: "collider",
       characters: [
         {
           id: "player",
@@ -373,9 +388,9 @@ export default class WorldScene extends Scene {
             },
           },
           startPosition,
-          // Fix the Direction type mismatch by casting
           facingDirection: facingDirection as Direction,
           speed: this.speed,
+          charLayer: "Background"
         },
       ],
     };

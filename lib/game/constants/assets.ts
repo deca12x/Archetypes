@@ -23,6 +23,7 @@ export enum Tilesets {
   INSIDE_SEVEN = "inside_seven",
   INSIDE_EIGHT = "inside_eight",
   INSIDE_WALLS = "inside_walls",
+  MAPTEST = "maptest",
 }
 
 export enum Maps {

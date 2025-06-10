@@ -2,6 +2,7 @@ import { Types } from "phaser";
 import BootScene from "./scenes/BootScene";
 import WorldScene from "./scenes/WorldScene";
 import Scene3 from "./scenes/Scene3";
+import Scene4 from "./scenes/Scene4";
 import TutorialScene from "./scenes/TutorialScene";
 import TourScene from "./scenes/TourScene";
 
@@ -18,7 +19,7 @@ export const gameConfig: Types.Core.GameConfig = {
       debug: false,
     },
   },
-  scene: [BootScene, WorldScene, Scene3, TutorialScene, TourScene],
+  scene: [BootScene, WorldScene, Scene3, Scene4, TutorialScene, TourScene],
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,

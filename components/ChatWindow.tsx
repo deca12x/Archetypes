@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { PixelExplosion } from './PixelExplosion';
 import { InventoryCircle } from './InventoryCircle';
 import { useChatStore, ChatMessage } from '../lib/game/stores/chat';
+import { useIsInGame } from '@/lib/hooks/useIsInGame';
 
 interface ChatWindowProps {
   onSendMessage: (message: string) => void;
@@ -24,6 +25,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const [explodingMessageId, setExplodingMessageId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const sessionIdRef = useRef<string>(`nebula-${Date.now()}`);
+  const isInGame = useIsInGame();
 
   // Handle focus state for game controls
   useEffect(() => {
@@ -131,6 +133,10 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       setExplodingMessageId(null);
     }, 800);
   };
+
+  if (!isInGame) {
+    return null;
+  }
 
   return (
     <div className="fixed bottom-0 left-0 right-0 p-4">

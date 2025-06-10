@@ -1,7 +1,7 @@
-export const metadata = {
-  title: 'Archetypes Game',
-  description: 'A multiplayer game built with Phaser and Next.js',
-}
+"use client";
+
+import { Providers } from "@/components/providers";
+import "./global.css";
 
 export default function RootLayout({
   children,
@@ -11,8 +11,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-black">
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
-  )
+  );
 }

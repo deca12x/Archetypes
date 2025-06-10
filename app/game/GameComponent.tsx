@@ -11,6 +11,7 @@ import { useChatStore } from "../../lib/game/stores/chat";
 import Loading from "./ui/Loading";
 import ChatWindow from "./ui/ChatWindow";
 import { useSocket } from "@/lib/hooks/useSocket";
+import { gameConfig } from "./config";
 
 const GameComponent = () => {
   const [game, setGame] = useState<PhaserGame>();
@@ -41,33 +42,14 @@ const GameComponent = () => {
     }
 
     const newGame = new PhaserGame({
+      ...gameConfig,
       parent: gameContainerRef.current,
-      type: AUTO,
       width: window.innerWidth,
       height: window.innerHeight,
       scale: {
         mode: Scale.RESIZE,
         autoCenter: Scale.CENTER_BOTH,
       },
-      scene: [BootScene, WorldScene],
-      physics: {
-        default: "arcade",
-        arcade: {
-          debug: false,
-          gravity: { x: 0, y: 0 }
-        },
-      },
-      plugins: {
-        scene: [
-          {
-            key: "gridEngine",
-            plugin: GridEngine,
-            mapping: "gridEngine",
-          },
-        ],
-      },
-      pixelArt: true,
-      backgroundColor: "#000000",
     });
 
     setGame(newGame);

@@ -1,90 +1,80 @@
 // app/game/GameComponent.tsx
 "use client";
 
-import { AUTO, Scale, Game as PhaserGame } from "phaser";
-import { useState, useEffect, useRef } from "react";
-import GridEngine from "grid-engine";
-import BootScene from "./scenes/BootScene";
-import WorldScene from "./scenes/WorldScene";
+import React, { useEffect, useRef, useState } from "react";
+import Phaser from "phaser";
 import { useUIStore } from "../../lib/game/stores/ui";
 import { useChatStore } from "../../lib/game/stores/chat";
 import Loading from "./ui/Loading";
-import ChatWindow from "./ui/ChatWindow";
+import { ChatWindow } from "../../components/ChatWindow";
 import { useSocket } from "@/lib/hooks/useSocket";
 import { gameConfig } from "./config";
+import WorldScene from "./scenes/WorldScene";
+import { ThoughtBubble } from '@/components/ThoughtBubble';
 
-const GameComponent = () => {
-  const [game, setGame] = useState<PhaserGame>();
+export const GameComponent: React.FC = () => {
+  const gameRef = useRef<Phaser.Game | null>(null);
   const { loading } = useUIStore();
   const gameContainerRef = useRef<HTMLDivElement>(null);
-  const { socket, isConnected } = useSocket();
   const [worldScene, setWorldScene] = useState<WorldScene | null>(null);
+  const { socket, isConnected } = useSocket();
+  const [activeBubble, setActiveBubble] = useState<React.ReactNode | null>(null);
 
   useEffect(() => {
-    // Make the socket globally available to the Phaser game
-    if (socket && typeof window !== "undefined") {
-      (window as any).__gameSocket = socket;
+    if (!gameRef.current) {
+      const config: Phaser.Types.Core.GameConfig = {
+        type: Phaser.AUTO,
+        parent: 'game-container',
+        width: window.innerWidth,
+        height: window.innerHeight,
+        physics: {
+          default: 'arcade',
+          arcade: {
+            gravity: { x: 0, y: 0 },
+            debug: false
+          }
+        },
+        scene: WorldScene
+      };
 
-      // Also store game action for the Phaser scenes to access
-      if (localStorage.getItem("gameAction")) {
-        (window as any).__gameAction = localStorage.getItem("gameAction");
-        (window as any).__roomCode = localStorage.getItem("roomCode") || null;
-      }
+      const game = new Phaser.Game(config);
+      gameRef.current = game;
+
+      // Get reference to the WorldScene
+      const scene = game.scene.getScene('WorldScene') as WorldScene;
+      setWorldScene(scene);
+
+      // Listen for bubble updates
+      scene.events.on('bubbleUpdate', (bubble: React.ReactNode) => {
+        setActiveBubble(bubble);
+      });
+
+      // Handle window resize
+      const handleResize = () => {
+        game.scale.resize(window.innerWidth, window.innerHeight);
+      };
+      window.addEventListener('resize', handleResize);
+
+      return () => {
+        window.removeEventListener('resize', handleResize);
+        game.destroy(true);
+        gameRef.current = null;
+      };
     }
-  }, [socket]);
+  }, []);
 
-  useEffect(() => {
-    if (!gameContainerRef.current || !socket) return;
-
-    // Make sure any previous instance is destroyed
-    if (game) {
-      game.destroy(true);
-    }
-
-    const newGame = new PhaserGame({
-      ...gameConfig,
-      parent: gameContainerRef.current,
-      width: window.innerWidth,
-      height: window.innerHeight,
-      scale: {
-        mode: Scale.RESIZE,
-        autoCenter: Scale.CENTER_BOTH,
-      },
-    });
-
-    setGame(newGame);
-
-    // Get reference to the WorldScene once it's created
-    const checkForWorldScene = () => {
-      const worldSceneInstance = newGame.scene.getScene(
-        "WorldScene"
-      ) as WorldScene;
-      if (worldSceneInstance) {
-        setWorldScene(worldSceneInstance);
-      } else {
-        // Try again in a short while if not found
-        setTimeout(checkForWorldScene, 100);
-      }
-    };
-
-    // Start checking once the game is loaded
-    newGame.events.once("ready", checkForWorldScene);
-
-    // Cleanup on unmount
-    return () => {
-      newGame.destroy(true);
-    };
-  }, [gameContainerRef.current, socket]);
-
-  // Handle chat message sending
   const handleSendMessage = (message: string) => {
-    if (worldScene) {
-      worldScene.sendChatMessage(message);
+    if (socket && worldScene) {
+      socket.emit('chat message', {
+        message,
+        username: worldScene.username,
+        playerId: worldScene.playerId
+      });
     }
   };
 
   return (
-    <>
+    <div className="relative w-full h-screen">
       {loading && <Loading />}
       {!isConnected && (
         <div className="absolute top-0 left-0 bg-red-500 text-white p-2">
@@ -92,7 +82,7 @@ const GameComponent = () => {
         </div>
       )}
       <div
-        id="game"
+        id="game-container"
         ref={gameContainerRef}
         style={{ width: "100%", height: "100%" }}
       />
@@ -102,7 +92,8 @@ const GameComponent = () => {
         username={worldScene?.username || "Player"}
         playerId={worldScene?.playerId || ""}
       />
-    </>
+      {activeBubble}
+    </div>
   );
 };
 

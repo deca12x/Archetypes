@@ -67,6 +67,7 @@ export default class BootScene extends Scene {
   }
 
   loadImages(): void {
+    console.log("Loading images...");
     // Load map
     this.load.tilemapTiledJSON("desert_gate", "/assets/maps/desert_gate.json");
 
@@ -81,9 +82,10 @@ export default class BootScene extends Scene {
 
     // Load rogue sprite sheet
     this.load.spritesheet("rogue", "/assets/sprites/rogue_sheet.webp", {
-      frameWidth: 48, // <-- Update this if you know the actual frame width
-      frameHeight: 48 // <-- Update this if you know the actual frame height
+      frameWidth: 48,
+      frameHeight: 48
     });
+    console.log("Images loaded");
   }
 
   loadMaps(): void {
@@ -95,6 +97,7 @@ export default class BootScene extends Scene {
   }
 
   create(): void {
+    console.log("Creating animations...");
     // Create animations for the player
     this.anims.create({
       key: 'player_idle',
@@ -109,6 +112,28 @@ export default class BootScene extends Scene {
       frameRate: 12,
       repeat: -1
     });
+
+    // Create animations for the rogue
+    this.anims.create({
+      key: 'rogue_idle',
+      frames: this.anims.generateFrameNumbers('rogue', { 
+        start: 0,  // First row, first frame
+        end: 2     // First row, last frame
+      }),
+      frameRate: 8,
+      repeat: -1
+    });
+
+    this.anims.create({
+      key: 'rogue_walk',
+      frames: this.anims.generateFrameNumbers('rogue', { 
+        start: 3,  // Second row, first frame
+        end: 5     // Second row, last frame
+      }),
+      frameRate: 12,
+      repeat: -1
+    });
+    console.log("Animations created");
 
     // Start the world scene
     this.scene.start("WorldScene", {

@@ -177,8 +177,8 @@ export default class WorldScene extends Scene {
       }
     });
 
-    this.initializePlayer();
     this.initializeTilemap();
+    this.initializePlayer();
     this.initializeCamera();
     this.initializeGrid();
     this.listenKeyboardControl();
@@ -283,28 +283,6 @@ export default class WorldScene extends Scene {
     }
   }
 
-  listenMoves(): void {
-    if (this.input.keyboard && !isUIOpen()) {
-      // Check isMoving with ts-ignore
-      // @ts-ignore - GridEngine types are incomplete
-      const isMoving = this.gridEngine.isMoving("player");
-
-      if (!isMoving) {
-        const cursors = this.input.keyboard.createCursorKeys();
-
-        if (cursors.left?.isDown) {
-          this.gridEngine.move("player", "left");
-        } else if (cursors.right?.isDown) {
-          this.gridEngine.move("player", "right");
-        } else if (cursors.up?.isDown) {
-          this.gridEngine.move("player", "up");
-        } else if (cursors.down?.isDown) {
-          this.gridEngine.move("player", "down");
-        }
-      }
-    }
-  }
-
   initializeTilemap(): void {
     // Create the tilemap
     this.tilemap = this.make.tilemap({ key: "desert_gate" });
@@ -339,14 +317,16 @@ export default class WorldScene extends Scene {
   }
 
   initializePlayer() {
-    // Create player sprite
-    this.player = this.physics.add.sprite(100, 100, "player");
+    console.log("Initializing player...");
+    // Create player sprite using rogue
+    this.player = this.physics.add.sprite(100, 100, "rogue");
+    console.log("Player sprite created:", this.player);
+    
     this.player.setCollideWorldBounds(true);
-    this.player.setScale(1.33); // Scale up to match map tile size (32/24 = 1.33)
-    this.player.play('player_idle');
-
-    // Set up camera to follow player
-    this.cameras.main.startFollow(this.player);
+    this.player.setScale(1); // No scaling needed if rogue is 48x48
+    this.player.play('rogue_idle');
+    this.player.setDepth(1);
+    console.log("Player animations set");
   }
 
   initializeGrid(): void {
@@ -357,10 +337,10 @@ export default class WorldScene extends Scene {
           id: "player",
           sprite: this.player,
           walkingAnimationMapping: {
-            up: { leftFoot: 27, standing: 28, rightFoot: 29 },
+            up: { leftFoot: 3, standing: 4, rightFoot: 5 },
             down: { leftFoot: 0, standing: 1, rightFoot: 2 },
-            left: { leftFoot: 9, standing: 10, rightFoot: 11 },
-            right: { leftFoot: 9, standing: 10, rightFoot: 11 }
+            left: { leftFoot: 3, standing: 4, rightFoot: 5 },
+            right: { leftFoot: 3, standing: 4, rightFoot: 5 }
           },
           startPosition: { x: 5, y: 5 },
           speed: 4
@@ -370,16 +350,22 @@ export default class WorldScene extends Scene {
   }
 
   initializeCamera(): void {
-    this.cameras.main.roundPixels = true;
+    console.log("Initializing camera...");
+    // Set up camera properties
+    this.cameras.main.setBounds(0, 0, this.tilemap.widthInPixels, this.tilemap.heightInPixels);
     this.cameras.main.setZoom(1);
-    this.cameras.main.setBounds(
-      0,
-      0,
-      this.tilemap.widthInPixels,
-      this.tilemap.heightInPixels,
-      true
-    );
+    this.cameras.main.roundPixels = true;
+    
+    // Set up camera to follow player
     this.cameras.main.startFollow(this.player, true);
+    
+    // Set world bounds to match tilemap
+    this.physics.world.setBounds(0, 0, this.tilemap.widthInPixels, this.tilemap.heightInPixels);
+    
+    console.log("Camera initialized with bounds:", {
+      width: this.tilemap.widthInPixels,
+      height: this.tilemap.heightInPixels
+    });
   }
 
   listenKeyboardControl(): void {
@@ -409,6 +395,34 @@ export default class WorldScene extends Scene {
       this.input.keyboard.on("keydown-RIGHT", () => {
         triggerUIRight();
       });
+    }
+  }
+
+  listenMoves(): void {
+    if (this.input.keyboard && !isUIOpen()) {
+      // Check isMoving with ts-ignore
+      // @ts-ignore - GridEngine types are incomplete
+      const isMoving = this.gridEngine.isMoving("player");
+
+      if (!isMoving) {
+        const cursors = this.input.keyboard.createCursorKeys();
+        const wasd = {
+          up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+          down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
+          left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
+          right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
+        };
+
+        if (cursors.left?.isDown || wasd.left?.isDown) {
+          this.gridEngine.move("player", "left");
+        } else if (cursors.right?.isDown || wasd.right?.isDown) {
+          this.gridEngine.move("player", "right");
+        } else if (cursors.up?.isDown || wasd.up?.isDown) {
+          this.gridEngine.move("player", "up");
+        } else if (cursors.down?.isDown || wasd.down?.isDown) {
+          this.gridEngine.move("player", "down");
+        }
+      }
     }
   }
 

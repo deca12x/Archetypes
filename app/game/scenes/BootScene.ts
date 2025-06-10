@@ -67,25 +67,37 @@ export default class BootScene extends Scene {
   }
 
   loadImages(): void {
-    console.log("Loading images...");
-    // Load map
-    this.load.tilemapTiledJSON("desert_gate", "/assets/maps/desert_gate.json");
+    console.log("Starting to load images...");
+    try {
+      // Load all tilemaps
+      this.load.tilemapTiledJSON("desert_gate", "/assets/maps/desert_gate.json");
+      this.load.tilemapTiledJSON("scene3", "/assets/maps/scene3.json");
 
-    // Load tileset
-    this.load.image("desertgate", "/assets/tilesets/scene2map_topdown.webp");
+      // Load all tilesets
+      this.load.image("desertgate", "/assets/tilesets/scene2map_topdown.webp");
+      this.load.image("scene3", "/assets/tilesets/scene3.png");
 
-    // Load player sprite (wizard)
-    this.load.spritesheet("player", "/assets/images/characters/wizard.png", {
-      frameWidth: 48,
-      frameHeight: 48
-    });
+      // Load player sprite (wizard)
+      this.load.spritesheet("player", "/assets/images/characters/wizard.png", {
+        frameWidth: 48,
+        frameHeight: 48
+      });
 
-    // Load rogue sprite sheet
-    this.load.spritesheet("rogue", "/assets/sprites/rogue_sheet.webp", {
-      frameWidth: 48,
-      frameHeight: 48
-    });
-    console.log("Images loaded");
+      // Load rogue sprite sheet
+      console.log("Loading rogue sprite...");
+      this.load.spritesheet("rogue", "assets/sprites/rogue_sheet.webp", {
+        frameWidth: 48,
+        frameHeight: 48,
+      });
+
+      // Load background music
+      console.log("Loading background music...");
+      this.load.audio('background_music', '/assets/sounds/game_soundtrack.mp3');
+      
+      console.log("All assets loaded successfully");
+    } catch (error) {
+      console.error("Error loading assets:", error);
+    }
   }
 
   loadMaps(): void {
@@ -97,64 +109,90 @@ export default class BootScene extends Scene {
   }
 
   create(): void {
-    console.log("Creating animations...");
-    // Create animations for the player
-    this.anims.create({
-      key: 'player_idle',
-      frames: this.anims.generateFrameNumbers('player', { start: 0, end: 3 }),
-      frameRate: 8,
-      repeat: -1
-    });
+    console.log("BootScene create started");
+    try {
+      // Create animations for the player
+      this.anims.create({
+        key: 'player_idle',
+        frames: this.anims.generateFrameNumbers('player', { start: 0, end: 3 }),
+        frameRate: 8,
+        repeat: -1
+      });
 
-    this.anims.create({
-      key: 'player_walk',
-      frames: this.anims.generateFrameNumbers('player', { start: 4, end: 11 }),
-      frameRate: 12,
-      repeat: -1
-    });
+      this.anims.create({
+        key: 'player_walk',
+        frames: this.anims.generateFrameNumbers('player', { start: 4, end: 11 }),
+        frameRate: 12,
+        repeat: -1
+      });
 
-    // Create rogue animations
-    this.anims.create({
-      key: "rogue_idle",
-      frames: this.anims.generateFrameNumbers("rogue", { start: 0, end: 0 }),
-      frameRate: 10,
-      repeat: -1,
-    });
+      // Create rogue animations
+      this.anims.create({
+        key: "rogue_idle_down",
+        frames: this.anims.generateFrameNumbers("rogue", { start: 9, end: 9 }), // Use the first down frame
+        frameRate: 10,
+        repeat: -1,
+      });
 
-    // Walking animations for each direction
-    this.anims.create({
-      key: "rogue_walk_up",
-      frames: this.anims.generateFrameNumbers("rogue", { start: 0, end: 2 }), // First row
-      frameRate: 10,
-      repeat: -1,
-    });
+      this.anims.create({
+        key: "rogue_idle_up",
+        frames: this.anims.generateFrameNumbers("rogue", { start: 0, end: 0 }), // Use the first up frame
+        frameRate: 10,
+        repeat: -1,
+      });
 
-    this.anims.create({
-      key: "rogue_walk_right",
-      frames: this.anims.generateFrameNumbers("rogue", { start: 3, end: 5 }), // Second row
-      frameRate: 10,
-      repeat: -1,
-    });
+      this.anims.create({
+        key: "rogue_idle_left",
+        frames: this.anims.generateFrameNumbers("rogue", { start: 6, end: 6 }), // Use the first left frame
+        frameRate: 10,
+        repeat: -1,
+      });
 
-    this.anims.create({
-      key: "rogue_walk_left",
-      frames: this.anims.generateFrameNumbers("rogue", { start: 6, end: 8 }), // Third row
-      frameRate: 10,
-      repeat: -1,
-    });
+      this.anims.create({
+        key: "rogue_idle_right",
+        frames: this.anims.generateFrameNumbers("rogue", { start: 3, end: 3 }), // Use the first right frame
+        frameRate: 10,
+        repeat: -1,
+      });
 
-    this.anims.create({
-      key: "rogue_walk_down",
-      frames: this.anims.generateFrameNumbers("rogue", { start: 9, end: 11 }), // Fourth row
-      frameRate: 10,
-      repeat: -1,
-    });
-    console.log("Animations created");
+      // Walking animations for each direction
+      this.anims.create({
+        key: "rogue_walk_up",
+        frames: this.anims.generateFrameNumbers("rogue", { start: 0, end: 2 }), // First row
+        frameRate: 10,
+        repeat: -1,
+      });
 
-    // Start the world scene
-    this.scene.start("WorldScene", {
-      socket: this.socket,
-      mapKey: this.mapKey
-    });
+      this.anims.create({
+        key: "rogue_walk_right",
+        frames: this.anims.generateFrameNumbers("rogue", { start: 3, end: 5 }), // Second row
+        frameRate: 10,
+        repeat: -1,
+      });
+
+      this.anims.create({
+        key: "rogue_walk_left",
+        frames: this.anims.generateFrameNumbers("rogue", { start: 6, end: 8 }), // Third row
+        frameRate: 10,
+        repeat: -1,
+      });
+
+      this.anims.create({
+        key: "rogue_walk_down",
+        frames: this.anims.generateFrameNumbers("rogue", { start: 9, end: 11 }), // Fourth row
+        frameRate: 10,
+        repeat: -1,
+      });
+      console.log("Animations created successfully");
+
+      // Start the world scene
+      console.log("Starting WorldScene...");
+      this.scene.start("WorldScene", {
+        socket: this.socket,
+        mapKey: this.mapKey
+      });
+    } catch (error) {
+      console.error("Error in BootScene create:", error);
+    }
   }
 }

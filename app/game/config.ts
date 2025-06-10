@@ -1,4 +1,9 @@
 import { Types } from "phaser";
+import BootScene from "./scenes/BootScene";
+import WorldScene from "./scenes/WorldScene";
+import Scene3 from "./scenes/Scene3";
+import TutorialScene from "./scenes/TutorialScene";
+import TourScene from "./scenes/TourScene";
 
 export const gameConfig: Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -9,23 +14,11 @@ export const gameConfig: Types.Core.GameConfig = {
   physics: {
     default: "arcade",
     arcade: {
-      gravity: { y: 0 },
+      gravity: { x: 0, y: 0 },
       debug: false,
     },
   },
-  scene: {
-    preload: function (this: Phaser.Scene) {
-      // Load tileset
-      this.load.image("desert_gate1", "/assets/tilesets/desert_gate1.webp");
-      // Load map
-      this.load.tilemapTiledJSON("desertgate", "/assets/maps/desertgate.json");
-      // Load player sprite
-      this.load.spritesheet("player", "/assets/characters/wizard.png", {
-        frameWidth: 48,
-        frameHeight: 48,
-      });
-    },
-  },
+  scene: [BootScene, WorldScene, Scene3, TutorialScene, TourScene],
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,

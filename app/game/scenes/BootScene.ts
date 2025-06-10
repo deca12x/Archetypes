@@ -72,7 +72,7 @@ export default class BootScene extends Scene {
     this.load.tilemapTiledJSON("desert_gate", "/assets/maps/desert_gate.json");
 
     // Load tileset
-    this.load.image("desert_gate", "/assets/tilesets/desert_gate1.webp");
+    this.load.image("desertgate", "/assets/tilesets/scene2map_topdown.webp");
 
     // Load player sprite (wizard)
     this.load.spritesheet("player", "/assets/images/characters/wizard.png", {
@@ -113,25 +113,41 @@ export default class BootScene extends Scene {
       repeat: -1
     });
 
-    // Create animations for the rogue
+    // Create rogue animations
     this.anims.create({
-      key: 'rogue_idle',
-      frames: this.anims.generateFrameNumbers('rogue', { 
-        start: 0,  // First row, first frame
-        end: 2     // First row, last frame
-      }),
-      frameRate: 8,
-      repeat: -1
+      key: "rogue_idle",
+      frames: this.anims.generateFrameNumbers("rogue", { start: 0, end: 0 }),
+      frameRate: 10,
+      repeat: -1,
+    });
+
+    // Walking animations for each direction
+    this.anims.create({
+      key: "rogue_walk_up",
+      frames: this.anims.generateFrameNumbers("rogue", { start: 0, end: 2 }), // First row
+      frameRate: 10,
+      repeat: -1,
     });
 
     this.anims.create({
-      key: 'rogue_walk',
-      frames: this.anims.generateFrameNumbers('rogue', { 
-        start: 3,  // Second row, first frame
-        end: 5     // Second row, last frame
-      }),
-      frameRate: 12,
-      repeat: -1
+      key: "rogue_walk_right",
+      frames: this.anims.generateFrameNumbers("rogue", { start: 3, end: 5 }), // Second row
+      frameRate: 10,
+      repeat: -1,
+    });
+
+    this.anims.create({
+      key: "rogue_walk_left",
+      frames: this.anims.generateFrameNumbers("rogue", { start: 6, end: 8 }), // Third row
+      frameRate: 10,
+      repeat: -1,
+    });
+
+    this.anims.create({
+      key: "rogue_walk_down",
+      frames: this.anims.generateFrameNumbers("rogue", { start: 9, end: 11 }), // Fourth row
+      frameRate: 10,
+      repeat: -1,
     });
     console.log("Animations created");
 

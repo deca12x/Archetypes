@@ -159,59 +159,11 @@ export default class WorldScene extends Scene {
   }
 
   create(): void {
-    // Make the game instance globally accessible
-    (window as any).__PHASER_GAME__ = this.game;
-
-    // Add event listener to canvas to handle focus restoration
-    const canvas = this.game.canvas;
-    canvas.addEventListener("click", () => {
-      // Find and blur any focused input elements
-      const activeElement = document.activeElement as HTMLElement;
-      if (activeElement && activeElement.tagName === "INPUT") {
-        activeElement.blur();
-      }
-
-      // Ensure keyboard is enabled for the game
-      if (this.input.keyboard) {
-        this.input.keyboard.enabled = true;
-      }
-    });
-
+    console.log("WorldScene create started");
     this.initializeTilemap();
     this.initializePlayer();
-    this.initializeCamera();
     this.initializeGrid();
-    this.listenKeyboardControl();
-
-    // Add room code display for multiplayer
-    this.roomCodeText = this.add
-      .text(16, 16, "Room: Connecting...", {
-        fontSize: "18px",
-        padding: { x: 10, y: 5 },
-        backgroundColor: "#000000",
-        color: "#ffffff",
-      })
-      .setScrollFactor(0)
-      .setDepth(1000);
-
-    // Fix positionChangeFinished subscription and add socket event
-    // @ts-ignore - We need to ignore this since the types are not correctly exported
-    this.gridEngine.positionChangeFinished().subscribe((observer: any) => {
-      if (observer.charId === "player") {
-        savePlayerPosition(this);
-
-        // Send position update to other players when movement finishes
-        const position = this.gridEngine.getPosition("player");
-        const direction = this.gridEngine.getFacingDirection("player");
-        this.updatePlayerMovement(position.x, position.y, direction);
-      }
-    });
-
-    // Set up GridEngine movement started/stopped events for multiplayer
-    this.setupGridEngineListeners();
-
-    // Join or create room based on stored action
-    this.initializeMultiplayer();
+    console.log("WorldScene create completed");
   }
 
   initializeMultiplayer() {
@@ -288,7 +240,7 @@ export default class WorldScene extends Scene {
     this.tilemap = this.make.tilemap({ key: "desert_gate" });
 
     // Add tileset
-    const desertGateTileset = this.tilemap.addTilesetImage("desert_gate", "desert_gate");
+    const desertGateTileset = this.tilemap.addTilesetImage("desertgate", "desertgate");
 
     if (!desertGateTileset) {
       console.error('Failed to load tileset');
@@ -306,30 +258,46 @@ export default class WorldScene extends Scene {
     // Set world bounds
     this.physics.world.setBounds(0, 0, this.tilemap.widthInPixels, this.tilemap.heightInPixels);
 
-    // Set up camera
+    // Set up camera bounds
     this.cameras.main.setBounds(0, 0, this.tilemap.widthInPixels, this.tilemap.heightInPixels);
-    this.cameras.main.setZoom(1);
-
-    // Set up collision between player and background layer
-    if (this.player) {
-      this.physics.add.collider(this.player, backgroundLayer);
-    }
   }
 
   initializePlayer() {
     console.log("Initializing player...");
+    
+    if (!this.tilemap) {
+      console.error('Tilemap not initialized');
+      return;
+    }
+    
+    // Calculate bottom center position
+    const mapWidth = this.tilemap.widthInPixels;
+    const mapHeight = this.tilemap.heightInPixels;
+    const startX = mapWidth / 2;
+    const startY = mapHeight - 100; // 100 pixels from bottom
+    
     // Create player sprite using rogue
-    this.player = this.physics.add.sprite(100, 100, "rogue");
+    this.player = this.physics.add.sprite(startX, startY, "rogue");
     console.log("Player sprite created:", this.player);
     
     this.player.setCollideWorldBounds(true);
-    this.player.setScale(1); // No scaling needed if rogue is 48x48
+    this.player.setScale(1.5); // Make the character 1.5x bigger
     this.player.play('rogue_idle');
     this.player.setDepth(1);
     console.log("Player animations set");
+
+    // Set up camera to follow player with smooth lerp
+    this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+    this.cameras.main.setFollowOffset(0, 0);
+    this.cameras.main.setZoom(1);
   }
 
   initializeGrid(): void {
+    if (!this.tilemap || !this.player) {
+      console.error('Tilemap or player not initialized');
+      return;
+    }
+
     // Initialize GridEngine
     this.gridEngine.create(this.tilemap, {
       characters: [
@@ -337,13 +305,13 @@ export default class WorldScene extends Scene {
           id: "player",
           sprite: this.player,
           walkingAnimationMapping: {
-            up: { leftFoot: 3, standing: 4, rightFoot: 5 },
-            down: { leftFoot: 0, standing: 1, rightFoot: 2 },
-            left: { leftFoot: 3, standing: 4, rightFoot: 5 },
-            right: { leftFoot: 3, standing: 4, rightFoot: 5 }
+            up: { leftFoot: 0, standing: 1, rightFoot: 2 },
+            right: { leftFoot: 3, standing: 4, rightFoot: 5 },
+            left: { leftFoot: 6, standing: 7, rightFoot: 8 },
+            down: { leftFoot: 9, standing: 10, rightFoot: 11 }
           },
-          startPosition: { x: 5, y: 5 },
-          speed: 4
+          startPosition: { x: Math.floor(this.tilemap.widthInPixels / (32 * 2)), y: Math.floor(this.tilemap.heightInPixels / (32 * 2)) },
+          speed: 8
         }
       ]
     });
@@ -352,19 +320,22 @@ export default class WorldScene extends Scene {
   initializeCamera(): void {
     console.log("Initializing camera...");
     // Set up camera properties
-    this.cameras.main.setBounds(0, 0, this.tilemap.widthInPixels, this.tilemap.heightInPixels);
-    this.cameras.main.setZoom(1);
+    const mapWidth = this.tilemap.widthInPixels * 0.5;
+    const mapHeight = this.tilemap.heightInPixels * 0.5;
+    
+    this.cameras.main.setBounds(0, 0, mapWidth, mapHeight);
+    this.cameras.main.setZoom(1); // Reset zoom to 1 since we're scaling the map
     this.cameras.main.roundPixels = true;
     
     // Set up camera to follow player
     this.cameras.main.startFollow(this.player, true);
     
     // Set world bounds to match tilemap
-    this.physics.world.setBounds(0, 0, this.tilemap.widthInPixels, this.tilemap.heightInPixels);
+    this.physics.world.setBounds(0, 0, mapWidth, mapHeight);
     
     console.log("Camera initialized with bounds:", {
-      width: this.tilemap.widthInPixels,
-      height: this.tilemap.heightInPixels
+      width: mapWidth,
+      height: mapHeight
     });
   }
 
@@ -819,6 +790,55 @@ export default class WorldScene extends Scene {
       console.log("Message is self-only (no proximity chat active)");
       // If proximity chat is not active, we could automatically route to Nebula here
       // But that's handled in the ChatWindow component instead
+    }
+  }
+
+  handleMovement() {
+    if (!this.player || !this.player.body) return;
+
+    const cursors = this.input.keyboard.createCursorKeys();
+    const wasd = {
+      up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+      down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
+      left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
+      right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
+    };
+
+    // Reset velocity
+    this.player.setVelocity(0);
+
+    // Handle movement
+    const speed = 320;
+    let isMoving = false;
+
+    if (cursors.left.isDown || wasd.left.isDown) {
+      this.player.setVelocityX(-speed);
+      this.player.play('rogue_walk_left', true);
+      isMoving = true;
+    } else if (cursors.right.isDown || wasd.right.isDown) {
+      this.player.setVelocityX(speed);
+      this.player.play('rogue_walk_right', true);
+      isMoving = true;
+    }
+
+    if (cursors.up.isDown || wasd.up.isDown) {
+      this.player.setVelocityY(-speed);
+      this.player.play('rogue_walk_up', true);
+      isMoving = true;
+    } else if (cursors.down.isDown || wasd.down.isDown) {
+      this.player.setVelocityY(speed);
+      this.player.play('rogue_walk_down', true);
+      isMoving = true;
+    }
+
+    // Normalize diagonal movement
+    if (this.player.body.velocity.x !== 0 && this.player.body.velocity.y !== 0) {
+      this.player.body.velocity.normalize().scale(speed);
+    }
+
+    // Play idle animation when not moving
+    if (!isMoving) {
+      this.player.play('rogue_idle', true);
     }
   }
 }

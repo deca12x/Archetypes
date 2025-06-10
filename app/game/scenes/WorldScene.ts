@@ -111,34 +111,21 @@ export interface WorldReceivedData {
 }
 
 export default class WorldScene extends Scene {
-  // Original properties
-  gridEngine!: GridEngineInterface;
-  player!: Phaser.Physics.Arcade.Sprite;
-  speed: number = 10;
-  tilemap!: Tilemaps.Tilemap;
-  mapKey: string = "maptest"; // Default to maptest
-  daylightOverlay!: GameObjects.Graphics;
-  cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
-  enterKey!: Phaser.Input.Keyboard.Key;
-
-  // Socket.io properties
-  private socket: Socket | null = null;
-  public playerId: string | null = null;
-  private roomId: string | null = null;
-  private remotePlayers: Map<string, Phaser.GameObjects.Sprite> = new Map();
-  private roomCodeText!: Phaser.GameObjects.Text;
-
-  // New properties
-  username: string = "";
-  adjacentPlayers: Map<string, Player> = new Map();
-  chatGroupId: string | null = null;
-  _lastAdjacentCheck: number = 0;
-
-  private groundLayer!: Phaser.Tilemaps.TilemapLayer;
-  private worldLayer!: Phaser.Tilemaps.TilemapLayer;
+  private tilemap: Phaser.Tilemaps.Tilemap | null = null;
+  private player: Phaser.Physics.Arcade.Sprite | null = null;
+  private cursors: Phaser.Types.Input.Keyboard.CursorKeys | null = null;
+  private wasdKeys: {
+    up: Phaser.Input.Keyboard.Key;
+    down: Phaser.Input.Keyboard.Key;
+    left: Phaser.Input.Keyboard.Key;
+    right: Phaser.Input.Keyboard.Key;
+  } | null = null;
+  private collisionObjects: Phaser.GameObjects.Rectangle[] | null = null;
+  private moveSpeed: number = 350; // increased speed
+  private collisionLayer: Phaser.Tilemaps.TilemapLayer | null = null;
 
   constructor() {
-    super("WorldScene");
+    super({ key: "WorldScene" });
   }
 
   init(data: any) {
@@ -159,11 +146,45 @@ export default class WorldScene extends Scene {
   }
 
   create(): void {
-    console.log("WorldScene create started");
-    this.initializeTilemap();
-    this.initializePlayer();
-    this.initializeGrid();
-    console.log("WorldScene create completed");
+    console.log("WorldScene create method started");
+    try {
+      // Clear any existing game objects
+      this.children.each((child) => {
+        child.destroy();
+      });
+
+      // Initialize the tilemap first
+      this.initializeTilemap();
+      console.log("Tilemap initialized");
+
+      // Then initialize the player
+      this.initializePlayer();
+      console.log("Player initialized");
+
+      // Set up keyboard input
+      this.cursors = this.input.keyboard.createCursorKeys();
+      this.wasdKeys = this.input.keyboard.addKeys({
+        up: Phaser.Input.Keyboard.KeyCodes.W,
+        down: Phaser.Input.Keyboard.KeyCodes.S,
+        left: Phaser.Input.Keyboard.KeyCodes.A,
+        right: Phaser.Input.Keyboard.KeyCodes.D,
+      }) as {
+        up: Phaser.Input.Keyboard.Key;
+        down: Phaser.Input.Keyboard.Key;
+        left: Phaser.Input.Keyboard.Key;
+        right: Phaser.Input.Keyboard.Key;
+      };
+
+      // Start background music
+      if (!this.sound.get("background_music")) {
+        this.sound.play("background_music", {
+          loop: true,
+          volume: 0.5,
+        });
+      }
+    } catch (error) {
+      console.error("Error in create method:", error);
+    }
   }
 
   initializeMultiplayer() {
@@ -220,180 +241,141 @@ export default class WorldScene extends Scene {
       });
   }
 
-  update(time: number): void {
-    // If UI is open, don't allow player movement
-    if (isUIOpen()) {
-      return;
-    }
-
-    this.listenMoves();
-
-    // Check for adjacent players every 500ms for performance
-    if (!this._lastAdjacentCheck || time - this._lastAdjacentCheck > 500) {
-      this.checkAdjacentPlayers();
-      this._lastAdjacentCheck = time;
+  update(): void {
+    if (this.player) {
+      this.handleMovement();
+      // Check if player touches the top border
+      if (this.player.y - this.player.height / 2 <= 0) {
+        // Only switch scene if not already switching
+        if (!this.scene.isTransitioning) {
+          this.scene.isTransitioning = true;
+          // Don't stop music, just start next scene
+          this.scene.start('Scene3');
+        }
+      }
     }
   }
 
-  initializeTilemap(): void {
-    // Create the tilemap
-    this.tilemap = this.make.tilemap({ key: "desert_gate" });
-
-    // Add tileset
-    const desertGateTileset = this.tilemap.addTilesetImage("desertgate", "desertgate");
-
-    if (!desertGateTileset) {
-      console.error('Failed to load tileset');
-      return;
+  private handleMovement(): void {
+    if (!this.player || !this.cursors || !this.wasdKeys) return;
+    this.player.setVelocity(0);
+    let velocityX = 0;
+    let velocityY = 0;
+    if (this.cursors.left.isDown || this.wasdKeys.left.isDown) {
+      velocityX = -this.moveSpeed;
+    } else if (this.cursors.right.isDown || this.wasdKeys.right.isDown) {
+      velocityX = this.moveSpeed;
     }
-
-    // Create layer
-    const backgroundLayer = this.tilemap.createLayer("desert_gate", desertGateTileset);
-
-    if (!backgroundLayer) {
-      console.error('Failed to create layer');
-      return;
+    if (this.cursors.up.isDown || this.wasdKeys.up.isDown) {
+      velocityY = -this.moveSpeed;
+    } else if (this.cursors.down.isDown || this.wasdKeys.down.isDown) {
+      velocityY = this.moveSpeed;
     }
-
-    // Set world bounds
-    this.physics.world.setBounds(0, 0, this.tilemap.widthInPixels, this.tilemap.heightInPixels);
-
-    // Set up camera bounds
-    this.cameras.main.setBounds(0, 0, this.tilemap.widthInPixels, this.tilemap.heightInPixels);
+    // Normalize diagonal movement
+    if (velocityX !== 0 && velocityY !== 0) {
+      const norm = Math.sqrt(2) / 2;
+      velocityX *= norm;
+      velocityY *= norm;
+    }
+    this.player.setVelocity(velocityX, velocityY);
+    // Play appropriate animation
+    if (velocityX < 0) {
+      this.player.anims.play("rogue_walk_left", true);
+    } else if (velocityX > 0) {
+      this.player.anims.play("rogue_walk_right", true);
+    } else if (velocityY < 0) {
+      this.player.anims.play("rogue_walk_up", true);
+    } else if (velocityY > 0) {
+      this.player.anims.play("rogue_walk_down", true);
+    } else {
+      this.player.anims.play("rogue_idle_down", true);
+    }
   }
 
-  initializePlayer() {
+  private initializeTilemap(): void {
+    console.log("Initializing tilemap...");
+    try {
+      // Create the tilemap
+      this.tilemap = this.make.tilemap({ key: "desert_gate" });
+      console.log("Tilemap created");
+
+      // Add the tileset
+      const tileset = this.tilemap.addTilesetImage("desertgate", "desertgate");
+      if (!tileset) {
+        throw new Error("Failed to create tileset");
+      }
+      console.log("Tileset added");
+
+      // Create the main layer
+      const layer = this.tilemap.createLayer("desert_gate", tileset);
+      if (!layer) {
+        throw new Error("Failed to create layer");
+      }
+      console.log("Layer created");
+
+      // Create the collision layer (update 'collision' to your actual layer name if needed)
+      const collisionLayer = this.tilemap.createLayer("collision", tileset);
+      if (collisionLayer) {
+        collisionLayer.setCollisionByExclusion([-1]); // All non-empty tiles are collidable
+        this.collisionLayer = collisionLayer;
+      }
+
+      // Set world bounds to match map size
+      this.physics.world.setBounds(0, 0, this.tilemap.widthInPixels, this.tilemap.heightInPixels);
+      this.cameras.main.setBounds(0, 0, this.tilemap.widthInPixels, this.tilemap.heightInPixels);
+      this.cameras.main.setBackgroundColor("#e2a84b"); // Set to match map background
+    } catch (error) {
+      console.error("Error in initializeTilemap:", error);
+    }
+  }
+
+  private initializePlayer(): void {
     console.log("Initializing player...");
-    
-    if (!this.tilemap) {
-      console.error('Tilemap not initialized');
-      return;
-    }
-    
-    // Calculate bottom center position
-    const mapWidth = this.tilemap.widthInPixels;
-    const mapHeight = this.tilemap.heightInPixels;
-    const startX = mapWidth / 2;
-    const startY = mapHeight - 100; // 100 pixels from bottom
-    
-    // Create player sprite using rogue
-    this.player = this.physics.add.sprite(startX, startY, "rogue");
-    console.log("Player sprite created:", this.player);
-    
-    this.player.setCollideWorldBounds(true);
-    this.player.setScale(1.5); // Make the character 1.5x bigger
-    this.player.play('rogue_idle');
-    this.player.setDepth(1);
-    console.log("Player animations set");
-
-    // Set up camera to follow player with smooth lerp
-    this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
-    this.cameras.main.setFollowOffset(0, 0);
-    this.cameras.main.setZoom(1);
-  }
-
-  initializeGrid(): void {
-    if (!this.tilemap || !this.player) {
-      console.error('Tilemap or player not initialized');
-      return;
-    }
-
-    // Initialize GridEngine
-    this.gridEngine.create(this.tilemap, {
-      characters: [
-        {
-          id: "player",
-          sprite: this.player,
-          walkingAnimationMapping: {
-            up: { leftFoot: 0, standing: 1, rightFoot: 2 },
-            right: { leftFoot: 3, standing: 4, rightFoot: 5 },
-            left: { leftFoot: 6, standing: 7, rightFoot: 8 },
-            down: { leftFoot: 9, standing: 10, rightFoot: 11 }
-          },
-          startPosition: { x: Math.floor(this.tilemap.widthInPixels / (32 * 2)), y: Math.floor(this.tilemap.heightInPixels / (32 * 2)) },
-          speed: 8
-        }
-      ]
-    });
-  }
-
-  initializeCamera(): void {
-    console.log("Initializing camera...");
-    // Set up camera properties
-    const mapWidth = this.tilemap.widthInPixels * 0.5;
-    const mapHeight = this.tilemap.heightInPixels * 0.5;
-    
-    this.cameras.main.setBounds(0, 0, mapWidth, mapHeight);
-    this.cameras.main.setZoom(1); // Reset zoom to 1 since we're scaling the map
-    this.cameras.main.roundPixels = true;
-    
-    // Set up camera to follow player
-    this.cameras.main.startFollow(this.player, true);
-    
-    // Set world bounds to match tilemap
-    this.physics.world.setBounds(0, 0, mapWidth, mapHeight);
-    
-    console.log("Camera initialized with bounds:", {
-      width: mapWidth,
-      height: mapHeight
-    });
-  }
-
-  listenKeyboardControl(): void {
-    // Add null checks for input.keyboard
-    this.input.keyboard?.on("keydown-ESC", () => {
-      if (isUIOpen()) {
-        triggerUIExit();
-      } else {
-        toggleMenu();
+    try {
+      if (!this.tilemap) {
+        console.error('Tilemap not initialized');
+        return;
       }
-    });
 
-    // Only add these keyboard controls if keyboard is enabled
-    if (this.input.keyboard?.enabled) {
-      this.input.keyboard.on("keydown-UP", () => {
-        triggerUIUp();
-      });
+      // Calculate bottom center position
+      const mapWidth = this.tilemap.widthInPixels;
+      const mapHeight = this.tilemap.heightInPixels;
+      const startX = mapWidth / 2;
+      const startY = mapHeight - 200; // 200 pixels from bottom
 
-      this.input.keyboard.on("keydown-DOWN", () => {
-        triggerUIDown();
-      });
+      // Create player sprite
+      this.player = this.physics.add.sprite(startX, startY, "rogue");
+      console.log("Player sprite created:", this.player);
 
-      this.input.keyboard.on("keydown-LEFT", () => {
-        triggerUILeft();
-      });
-
-      this.input.keyboard.on("keydown-RIGHT", () => {
-        triggerUIRight();
-      });
-    }
-  }
-
-  listenMoves(): void {
-    if (this.input.keyboard && !isUIOpen()) {
-      // Check isMoving with ts-ignore
-      // @ts-ignore - GridEngine types are incomplete
-      const isMoving = this.gridEngine.isMoving("player");
-
-      if (!isMoving) {
-        const cursors = this.input.keyboard.createCursorKeys();
-        const wasd = {
-          up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
-          down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
-          left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
-          right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
-        };
-
-        if (cursors.left?.isDown || wasd.left?.isDown) {
-          this.gridEngine.move("player", "left");
-        } else if (cursors.right?.isDown || wasd.right?.isDown) {
-          this.gridEngine.move("player", "right");
-        } else if (cursors.up?.isDown || wasd.up?.isDown) {
-          this.gridEngine.move("player", "up");
-        } else if (cursors.down?.isDown || wasd.down?.isDown) {
-          this.gridEngine.move("player", "down");
-        }
+      if (!this.player) {
+        console.error('Failed to create player sprite');
+        return;
       }
+
+      // Set player properties
+      this.player.setScale(1);
+      this.player.setCollideWorldBounds(true);
+      this.player.setBounce(0.1);
+      this.player.setDamping(true);
+      this.player.setDrag(0.95);
+      this.player.setMaxVelocity(200);
+
+      // Add collider with collision layer
+      if (this.collisionLayer) {
+        this.physics.add.collider(this.player, this.collisionLayer);
+      }
+
+      // Set up camera to follow player
+      this.cameras.main.startFollow(this.player, true);
+      this.cameras.main.setFollowOffset(0, 0);
+      this.cameras.main.setZoom(1);
+
+      // Set initial animation
+      if (this.player.anims) {
+        this.player.anims.play("rogue_idle_down", true);
+      }
+    } catch (error) {
+      console.error("Error in initializePlayer:", error);
     }
   }
 
@@ -790,55 +772,6 @@ export default class WorldScene extends Scene {
       console.log("Message is self-only (no proximity chat active)");
       // If proximity chat is not active, we could automatically route to Nebula here
       // But that's handled in the ChatWindow component instead
-    }
-  }
-
-  handleMovement() {
-    if (!this.player || !this.player.body) return;
-
-    const cursors = this.input.keyboard.createCursorKeys();
-    const wasd = {
-      up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
-      down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
-      left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
-      right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
-    };
-
-    // Reset velocity
-    this.player.setVelocity(0);
-
-    // Handle movement
-    const speed = 320;
-    let isMoving = false;
-
-    if (cursors.left.isDown || wasd.left.isDown) {
-      this.player.setVelocityX(-speed);
-      this.player.play('rogue_walk_left', true);
-      isMoving = true;
-    } else if (cursors.right.isDown || wasd.right.isDown) {
-      this.player.setVelocityX(speed);
-      this.player.play('rogue_walk_right', true);
-      isMoving = true;
-    }
-
-    if (cursors.up.isDown || wasd.up.isDown) {
-      this.player.setVelocityY(-speed);
-      this.player.play('rogue_walk_up', true);
-      isMoving = true;
-    } else if (cursors.down.isDown || wasd.down.isDown) {
-      this.player.setVelocityY(speed);
-      this.player.play('rogue_walk_down', true);
-      isMoving = true;
-    }
-
-    // Normalize diagonal movement
-    if (this.player.body.velocity.x !== 0 && this.player.body.velocity.y !== 0) {
-      this.player.body.velocity.normalize().scale(speed);
-    }
-
-    // Play idle animation when not moving
-    if (!isMoving) {
-      this.player.play('rogue_idle', true);
     }
   }
 }

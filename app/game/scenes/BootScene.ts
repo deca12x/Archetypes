@@ -68,29 +68,30 @@ export default class BootScene extends Scene {
 
   loadImages(): void {
     // Load map
-    this.load.tilemapTiledJSON("world", "/assets/maps/custom_map.json");
+    this.load.tilemapTiledJSON("desert_gate", "/assets/maps/desert_gate.json");
 
     // Load tileset
-    this.load.image("maptest", "/assets/tilesets/maptest.png");
+    this.load.image("desert_gate", "/assets/tilesets/desert_gate1.webp");
 
-    // Load player sprite
-    this.load.spritesheet("player", "/assets/images/characters/explorer.png", {
-      frameWidth: 24,
+    // Load player sprite (wizard)
+    this.load.spritesheet("player", "/assets/images/characters/wizard.png", {
+      frameWidth: 48,
       frameHeight: 48
+    });
+
+    // Load rogue sprite sheet
+    this.load.spritesheet("rogue", "/assets/sprites/rogue_sheet.webp", {
+      frameWidth: 48, // <-- Update this if you know the actual frame width
+      frameHeight: 48 // <-- Update this if you know the actual frame height
     });
   }
 
   loadMaps(): void {
-    // Load the map
-    this.load.tilemapTiledJSON("map", "/assets/maps/map.json");
+    // No additional maps needed
   }
 
   loadSpriteSheets(): void {
-    // Load player sprite
-    this.load.spritesheet("player", "/assets/images/characters/wizard.png", {
-      frameWidth: PLAYER_SIZE.width,
-      frameHeight: PLAYER_SIZE.height,
-    });
+    // Already loaded in loadImages
   }
 
   create(): void {

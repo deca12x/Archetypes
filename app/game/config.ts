@@ -1,5 +1,4 @@
 import { Types } from "phaser";
-import { Maps, Tilesets } from "@/lib/game/constants/assets";
 
 export const gameConfig: Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -17,11 +16,9 @@ export const gameConfig: Types.Core.GameConfig = {
   scene: {
     preload: function (this: Phaser.Scene) {
       // Load tileset
-      this.load.image(Tilesets.MAPTEST, "/assets/tilesets/maptest.png");
-      
+      this.load.image("desert_gate1", "/assets/tilesets/desert_gate1.webp");
       // Load map
-      this.load.tilemapTiledJSON(Maps.MAP, "/assets/maps/custom_map.json");
-      
+      this.load.tilemapTiledJSON("desertgate", "/assets/maps/desertgate.json");
       // Load player sprite
       this.load.spritesheet("player", "/assets/characters/wizard.png", {
         frameWidth: 48,
@@ -51,24 +48,10 @@ export const gameConfig: Types.Core.GameConfig = {
   },
   callbacks: {
     preBoot: () => {
-      // Load assets before the game starts
       const assets = [
-        // Tilesets
-        { key: Tilesets.MAPTEST, path: "/assets/tilesets/maptest.png" },
-        // Map
-        { key: Maps.MAP, path: "/assets/maps/custom_map.json" },
-        // Characters
+        { key: "desert_gate1", path: "/assets/tilesets/desert_gate1.webp" },
+        { key: "desertgate", path: "/assets/maps/desertgate.json" },
         { key: "wizard", path: "/assets/characters/wizard.png" },
-        { key: "explorer", path: "/assets/characters/explorer.png" },
-        { key: "ruler", path: "/assets/characters/ruler.png" },
-        { key: "hero", path: "/assets/characters/hero.png" },
-        // UI
-        { key: "ui", path: "/assets/ui/ui.png" },
-        // Sounds
-        { key: "background_music", path: "/assets/sounds/background.mp3" },
-        { key: "click", path: "/assets/sounds/click.mp3" },
-        { key: "swap", path: "/assets/sounds/swap.mp3" },
-        { key: "attack", path: "/assets/sounds/attack.mp3" }
       ];
       return assets;
     },

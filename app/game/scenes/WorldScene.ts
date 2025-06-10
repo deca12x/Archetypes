@@ -307,18 +307,18 @@ export default class WorldScene extends Scene {
 
   initializeTilemap(): void {
     // Create the tilemap
-    this.tilemap = this.make.tilemap({ key: "world" });
+    this.tilemap = this.make.tilemap({ key: "desert_gate" });
 
     // Add tileset
-    const maptestTileset = this.tilemap.addTilesetImage("maptest", "maptest");
+    const desertGateTileset = this.tilemap.addTilesetImage("desert_gate", "desert_gate");
 
-    if (!maptestTileset) {
+    if (!desertGateTileset) {
       console.error('Failed to load tileset');
       return;
     }
 
     // Create layer
-    const backgroundLayer = this.tilemap.createLayer("Background", maptestTileset);
+    const backgroundLayer = this.tilemap.createLayer("desert_gate", desertGateTileset);
 
     if (!backgroundLayer) {
       console.error('Failed to create layer');

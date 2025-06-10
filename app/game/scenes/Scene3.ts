@@ -11,6 +11,7 @@ export default class Scene3 extends Scene {
     right: Phaser.Input.Keyboard.Key;
   } | null = null;
   private moveSpeed: number = 350;
+  private collisionLayer: Phaser.Tilemaps.TilemapLayer | null = null;
 
   constructor() {
     super({ key: "Scene3" });
@@ -18,13 +19,19 @@ export default class Scene3 extends Scene {
 
   create(): void {
     // Create the tilemap
-    this.tilemap = this.make.tilemap({ key: "scene3" });
+    this.tilemap = this.make.tilemap({ key: "scene3", tileWidth: 32, tileHeight: 32 });
     const tileset = this.tilemap.addTilesetImage("scene3", "scene3");
     if (!tileset) {
       console.error("Failed to load tileset 'scene3' for Scene3");
       return;
     }
-    const layer = this.tilemap.createLayer(0, tileset);
+    // Create the ground layer
+    this.tilemap.createLayer("ground", tileset);
+    // Create the collision layer and set collision on all non-empty tiles
+    this.collisionLayer = this.tilemap.createLayer("collision", tileset);
+    if (this.collisionLayer) {
+      this.collisionLayer.setCollisionByExclusion([-1]);
+    }
 
     // Set world bounds
     this.physics.world.setBounds(0, 0, this.tilemap.widthInPixels, this.tilemap.heightInPixels);
@@ -32,21 +39,23 @@ export default class Scene3 extends Scene {
     this.cameras.main.setBackgroundColor("#e2a84b");
 
     // Spawn player at bottom center
-    if (this.tilemap) {
+    if (this.tilemap && this.physics && this.cameras && this.cameras.main && this.physics.add) {
       const startX = this.tilemap.widthInPixels / 2;
       const startY = this.tilemap.heightInPixels - 100;
-      if (this.physics && this.cameras && this.cameras.main && this.physics.add) {
-        this.player = this.physics.add?.sprite(startX, startY, "rogue") ?? null;
-        this.player?.setScale(1);
-        this.player?.setCollideWorldBounds(true);
-        this.player?.setBounce(0.1);
-        this.player?.setDamping(true);
-        this.player?.setDrag(0.95);
-        this.player?.setMaxVelocity(200);
-        this.cameras.main?.startFollow(this.player, true);
-        this.cameras.main?.setFollowOffset(0, 0);
-        this.cameras.main?.setZoom(1);
-        this.player?.anims?.play("rogue_idle_down", true);
+      this.player = this.physics.add?.sprite(startX, startY, "rogue") ?? null;
+      this.player?.setScale(1);
+      this.player?.setCollideWorldBounds(true);
+      this.player?.setBounce(0.1);
+      this.player?.setDamping(true);
+      this.player?.setDrag(0.95);
+      this.player?.setMaxVelocity(200);
+      this.cameras.main?.startFollow(this.player, true);
+      this.cameras.main?.setFollowOffset(0, 0);
+      this.cameras.main?.setZoom(1);
+      this.player?.anims?.play("rogue_idle_down", true);
+      // Add collider with collision layer
+      if (this.collisionLayer && this.player) {
+        this.physics.add.collider(this.player, this.collisionLayer);
       }
     }
 
@@ -76,6 +85,17 @@ export default class Scene3 extends Scene {
   update(): void {
     if (this.player && this.cursors && this.wasdKeys) {
       this.handleMovement();
+
+      // Check if player is in the top left corner (tile 0,0)
+      const tileX = Math.floor(this.player.x / 32);
+      const tileY = Math.floor(this.player.y / 32);
+      if (tileX === 0 && tileY === 0) {
+        // Only switch scene if not already switching
+        if (!(this.scene as any).isTransitioning) {
+          (this.scene as any).isTransitioning = true;
+          this.scene.start('Scene4');
+        }
+      }
     }
   }
 

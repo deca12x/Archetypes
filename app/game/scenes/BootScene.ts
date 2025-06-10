@@ -11,6 +11,8 @@ export default class BootScene extends Scene {
   text!: GameObjects.Text;
   private socket: Socket | null = null;
   private mapKey: string = "world";
+  private loadingTimeout: NodeJS.Timeout | null = null;
+  private readonly LOADING_TIMEOUT = 10000; // 10 seconds timeout
 
   constructor() {
     super("BootScene");
@@ -31,39 +33,78 @@ export default class BootScene extends Scene {
   }
 
   preload(): void {
-    this.load.on("progress", (value: number) => {
-      console.log(`Loading progress: ${value * 100}%`);
-      dispatch<number>(UIEvents.LOADING_PROGRESS, value);
+    // Set up loading events
+    this.load.on('start', () => {
+      console.log('Asset preloading started');
+      this.startLoadingTimeout();
     });
 
-    this.load.on("complete", () => {
-      console.log("All assets loaded successfully");
-      useUIStore.getState().setLoading(false);
-      this.launchGame();
+    this.load.on('progress', (value: number) => {
+      console.log(`Preloading progress: ${(value * 100).toFixed(0)}%`);
+      this.events.emit('loadingProgress', {
+        progress: value * 100,
+        currentAsset: 'Preloading assets...',
+        totalAssets: this.load.totalComplete,
+        loadedAssets: this.load.totalComplete
+      });
     });
 
-    this.load.on("loaderror", (file: any) => {
-      console.error("Error loading asset:", file.src);
+    this.load.on('complete', () => {
+      console.log('Preloading complete');
+      this.clearLoadingTimeout();
     });
 
-    // Create loading text
-    const width = this.cameras.main.width;
-    const height = this.cameras.main.height;
-    const loadingText = this.make.text({
-      x: width / 2,
-      y: height / 2 - 50,
-      text: "Loading...",
-      style: {
-        font: "20px monospace",
-        fill: "#ffffff",
-      } as any,
+    this.load.on('loaderror', (file: any) => {
+      console.error('Error preloading asset:', file.src);
+      this.clearLoadingTimeout();
     });
-    loadingText.setOrigin(0.5, 0.5);
 
-    // Load all required assets
-    this.loadImages();
-    this.loadSpriteSheets();
-    this.loadMaps();
+    // Load essential assets first
+    this.loadEssentialAssets();
+  }
+
+  private loadEssentialAssets() {
+    // Load player sprites (essential for gameplay)
+    this.load.image('elder', '/assets/sprites/elder_topdown.webp');
+    this.load.image('rogue', '/assets/sprites/rogue_sheet.webp');
+    
+    // Load UI assets
+    this.load.image('compass', '/assets/sprites/compass.webp');
+  }
+
+  private startLoadingTimeout() {
+    this.clearLoadingTimeout();
+    this.loadingTimeout = setTimeout(() => {
+      console.warn('Loading timeout reached, proceeding with available assets');
+      this.scene.start('WorldScene');
+    }, this.LOADING_TIMEOUT);
+  }
+
+  private clearLoadingTimeout() {
+    if (this.loadingTimeout) {
+      clearTimeout(this.loadingTimeout);
+      this.loadingTimeout = null;
+    }
+  }
+
+  create(): void {
+    // Start loading non-essential assets in the background
+    this.loadNonEssentialAssets();
+    
+    // Start the world scene
+    this.scene.start('WorldScene');
+  }
+
+  private loadNonEssentialAssets() {
+    // Load audio in the background
+    this.load.audio('soundtrack', '/assets/sounds/game_soundtrack.mp3');
+    
+    // Load additional UI assets
+    this.load.image('desert_remains', '/assets/tilesets/desert_remains.png');
+    this.load.image('desert_sands', '/assets/tilesets/desertsands.webp');
+    
+    // Start loading
+    this.load.start();
   }
 
   loadImages(): void {
@@ -72,10 +113,12 @@ export default class BootScene extends Scene {
       // Load all tilemaps
       this.load.tilemapTiledJSON("desert_gate", "/assets/maps/desert_gate.json");
       this.load.tilemapTiledJSON("scene3", "/assets/maps/scene3.json");
+      this.load.tilemapTiledJSON("scene4", "/assets/maps/scene4.json");
 
       // Load all tilesets
       this.load.image("desertgate", "/assets/tilesets/scene2map_topdown.webp");
       this.load.image("scene3", "/assets/tilesets/scene3.png");
+      this.load.image("scene4", "/assets/tilesets/desert_remains.png");
 
       // Load player sprite (wizard)
       this.load.spritesheet("player", "/assets/images/characters/wizard.png", {
@@ -106,93 +149,5 @@ export default class BootScene extends Scene {
 
   loadSpriteSheets(): void {
     // Already loaded in loadImages
-  }
-
-  create(): void {
-    console.log("BootScene create started");
-    try {
-      // Create animations for the player
-      this.anims.create({
-        key: 'player_idle',
-        frames: this.anims.generateFrameNumbers('player', { start: 0, end: 3 }),
-        frameRate: 8,
-        repeat: -1
-      });
-
-      this.anims.create({
-        key: 'player_walk',
-        frames: this.anims.generateFrameNumbers('player', { start: 4, end: 11 }),
-        frameRate: 12,
-        repeat: -1
-      });
-
-      // Create rogue animations
-      this.anims.create({
-        key: "rogue_idle_down",
-        frames: this.anims.generateFrameNumbers("rogue", { start: 9, end: 9 }), // Use the first down frame
-        frameRate: 10,
-        repeat: -1,
-      });
-
-      this.anims.create({
-        key: "rogue_idle_up",
-        frames: this.anims.generateFrameNumbers("rogue", { start: 0, end: 0 }), // Use the first up frame
-        frameRate: 10,
-        repeat: -1,
-      });
-
-      this.anims.create({
-        key: "rogue_idle_left",
-        frames: this.anims.generateFrameNumbers("rogue", { start: 6, end: 6 }), // Use the first left frame
-        frameRate: 10,
-        repeat: -1,
-      });
-
-      this.anims.create({
-        key: "rogue_idle_right",
-        frames: this.anims.generateFrameNumbers("rogue", { start: 3, end: 3 }), // Use the first right frame
-        frameRate: 10,
-        repeat: -1,
-      });
-
-      // Walking animations for each direction
-      this.anims.create({
-        key: "rogue_walk_up",
-        frames: this.anims.generateFrameNumbers("rogue", { start: 0, end: 2 }), // First row
-        frameRate: 10,
-        repeat: -1,
-      });
-
-      this.anims.create({
-        key: "rogue_walk_right",
-        frames: this.anims.generateFrameNumbers("rogue", { start: 3, end: 5 }), // Second row
-        frameRate: 10,
-        repeat: -1,
-      });
-
-      this.anims.create({
-        key: "rogue_walk_left",
-        frames: this.anims.generateFrameNumbers("rogue", { start: 6, end: 8 }), // Third row
-        frameRate: 10,
-        repeat: -1,
-      });
-
-      this.anims.create({
-        key: "rogue_walk_down",
-        frames: this.anims.generateFrameNumbers("rogue", { start: 9, end: 11 }), // Fourth row
-        frameRate: 10,
-        repeat: -1,
-      });
-      console.log("Animations created successfully");
-
-      // Start the world scene
-      console.log("Starting WorldScene...");
-      this.scene.start("WorldScene", {
-        socket: this.socket,
-        mapKey: this.mapKey
-      });
-    } catch (error) {
-      console.error("Error in BootScene create:", error);
-    }
   }
 }

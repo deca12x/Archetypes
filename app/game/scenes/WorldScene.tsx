@@ -144,27 +144,50 @@ class WorldScene extends Phaser.Scene {
         totalAssets: this.totalAssets,
         loadedAssets: this.loadedAssets
       });
+
+      // If this is the soundtrack, start playing it
+      if (key === 'soundtrack') {
+        const music = this.sound.add('soundtrack', {
+          volume: 0.5,
+          loop: true
+        });
+        music.play();
+      }
     });
 
     this.load.on('complete', () => {
       console.log('All assets loaded successfully');
+      this.events.emit('sceneReady');
     });
 
     this.load.on('loaderror', (file: any) => {
       console.error('Error loading asset:', file.src);
+      // Continue loading other assets even if one fails
+      this.events.emit('loadingProgress', {
+        progress: (this.loadedAssets / this.totalAssets) * 100,
+        currentAsset: `Failed to load ${file.key}`,
+        totalAssets: this.totalAssets,
+        loadedAssets: this.loadedAssets
+      });
     });
 
     // Load game assets
     this.totalAssets = 4; // Update based on actual assets
     this.loadedAssets = 0;
 
-    console.log('Loading player sprites...');
-    // Load player sprites
+    // Load assets in priority order
+    this.loadPriorityAssets();
+  }
+
+  private loadPriorityAssets() {
+    // Load player sprites first (highest priority)
     this.load.image('elder', '/assets/sprites/elder_topdown.webp');
     this.load.image('rogue', '/assets/sprites/rogue_sheet.webp');
     
-    console.log('Loading audio...');
-    // Load background music
+    // Load UI assets next
+    this.load.image('compass', '/assets/sprites/compass.webp');
+    
+    // Load audio last (lowest priority)
     this.load.audio('soundtrack', '/assets/sounds/game_soundtrack.mp3');
   }
 
@@ -172,7 +195,7 @@ class WorldScene extends Phaser.Scene {
     console.log('WorldScene create started');
     
     try {
-      // Create the player
+      // Create the player immediately with essential assets
       console.log('Creating player sprite...');
       this.player = this.physics.add.sprite(400, 300, 'elder');
       this.player.setCollideWorldBounds(true);

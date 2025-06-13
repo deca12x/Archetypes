@@ -123,6 +123,11 @@ export default class WorldScene extends Scene {
   private collisionObjects: Phaser.GameObjects.Rectangle[] | null = null;
   private moveSpeed: number = 350; // increased speed
   private collisionLayer: Phaser.Tilemaps.TilemapLayer | null = null;
+  public username: string = "Player";
+  public playerId: string = "";
+  private socket: Socket | null = null;
+  private mapKey: string = "maptest";
+  private daylightOverlay: Phaser.GameObjects.Graphics | null = null;
 
   constructor() {
     super({ key: "WorldScene" });

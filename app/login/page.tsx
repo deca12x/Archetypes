@@ -41,6 +41,7 @@ export default function Login() {
     "/assets/images/layer1.webp",
     "/assets/images/layer2.webp",
     "/assets/images/layer 3.webp",
+    "/assets/images/layer 4.webp",
   ];
 
   return (

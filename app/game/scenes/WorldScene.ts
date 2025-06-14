@@ -1,4 +1,4 @@
-import { Scene, GameObjects, Tilemaps } from "phaser";
+import { Scene, GameObjects, Tilemaps, Physics } from "phaser";
 import { Socket } from "socket.io-client";
 import { Player } from "@/lib/socket/socketServer";
 import {
@@ -23,6 +23,8 @@ import {
 } from "../../../lib/game/utils/ui";
 import { useUserDataStore } from "../../../lib/game/stores/userData";
 import { useChatStore } from "../../../lib/game/stores/chat";
+import { useUIStore } from "../../../lib/game/stores/ui";
+import { useSocket } from "@/lib/hooks/useSocket";
 
 // Using string literal types instead of importing Direction from grid-engine
 type Direction = "up" | "down" | "left" | "right";
@@ -126,7 +128,7 @@ export default class WorldScene extends Scene {
   public username: string = "Player";
   public playerId: string = "";
   private socket: Socket | null = null;
-  private mapKey: string = "maptest";
+  private mapKey: string = "world";
   private daylightOverlay: Phaser.GameObjects.Graphics | null = null;
   private gridEngine: GridEngineInterface | null = null;
   private roomId: string = "";
@@ -135,6 +137,7 @@ export default class WorldScene extends Scene {
   private remotePlayers: Map<string, Phaser.GameObjects.Sprite> = new Map();
   private chatGroupId: string = "";
   private adjacentPlayers: Set<string> = new Set();
+  private backgroundMusic?: Phaser.Sound.BaseSound;
 
   constructor() {
     super({ key: "WorldScene" });
@@ -143,7 +146,8 @@ export default class WorldScene extends Scene {
   init(data: any) {
     // Get socket and mapKey from data passed from BootScene
     this.socket = data.socket;
-    this.mapKey = data.mapKey || "maptest";
+    this.mapKey = data.mapKey || "world";
+    this.backgroundMusic = data.music; // Get the music instance from IntroScene
 
     const daylightOverlay = this.add.graphics();
     daylightOverlay.setDepth(1000);
@@ -192,11 +196,12 @@ export default class WorldScene extends Scene {
       }
 
       // Start background music
-      if (!this.sound.get("background_music")) {
-        this.sound.play("background_music", {
-          loop: true,
+      if (!this.backgroundMusic) {
+        this.backgroundMusic = this.sound.add('background_music', {
           volume: 0.5,
+          loop: true
         });
+        this.backgroundMusic.play();
       }
     } catch (error) {
       console.error("Error in create method:", error);
@@ -268,14 +273,21 @@ export default class WorldScene extends Scene {
   update(): void {
     if (this.player) {
       this.handleMovement();
-      // Check if player touches the top border
-      if (this.player.y - this.player.height / 2 <= 0) {
-        // Only switch scene if not already switching
-        if (!this.isTransitioning) {
-          this.isTransitioning = true;
-          // Don't stop music, just start next scene
-          this.scene.start('Scene3');
-        }
+      // Check if player is in the transition area (top center of the map)
+      const transitionX = this.tilemap?.widthInPixels ? this.tilemap.widthInPixels / 2 : 0;
+      const transitionY = 50; // 50 pixels from top
+      const distanceToTransition = Phaser.Math.Distance.Between(
+        this.player.x,
+        this.player.y,
+        transitionX,
+        transitionY
+      );
+      
+      // Only transition if player is close to the transition point
+      if (distanceToTransition < 30 && !this.isTransitioning) {
+        this.isTransitioning = true;
+        // Don't stop music, just start next scene
+        this.scene.start('Scene3');
       }
     }
   }

@@ -14,19 +14,21 @@ export default class BootScene extends Scene {
 
   constructor() {
     super("BootScene");
+    console.log("BootScene constructor called");
   }
 
   init(data: any) {
     this.socket = data.socket;
     this.mapKey = data.mapKey || "world";
+    console.log("BootScene init called");
   }
 
   launchGame(): void {
     this.sound.pauseOnBlur = false;
-    // Pass socket to WorldScene
-    this.scene.start("WorldScene", { 
+    // Start with IntroScene instead of WorldScene
+    this.scene.start("IntroScene", { 
       socket: this.socket,
-      mapKey: this.mapKey // Using map.json as our main map
+      mapKey: this.mapKey
     });
   }
 
@@ -64,6 +66,12 @@ export default class BootScene extends Scene {
     this.loadImages();
     this.loadSpriteSheets();
     this.loadMaps();
+    this.loadVideos();
+  }
+
+  loadVideos(): void {
+    console.log("Loading videos...");
+    this.load.video("scene1", "/assets/videos/scene1final_optimized.webm");
   }
 
   loadImages(): void {
@@ -95,6 +103,9 @@ export default class BootScene extends Scene {
       // Load background music
       console.log("Loading background music...");
       this.load.audio('background_music', '/assets/sounds/game_soundtrack.mp3');
+      
+      // Load tutorial overlay
+      this.load.image('tutorial_overlay', '/assets/images/tutorial_overlay.png');
       
       console.log("All assets loaded successfully");
     } catch (error) {
@@ -131,28 +142,28 @@ export default class BootScene extends Scene {
       // Create rogue animations
       this.anims.create({
         key: "rogue_idle_down",
-        frames: this.anims.generateFrameNumbers("rogue", { start: 9, end: 9 }), // Use the first down frame
+        frames: this.anims.generateFrameNumbers("rogue", { start: 9, end: 9 }),
         frameRate: 10,
         repeat: -1,
       });
 
       this.anims.create({
         key: "rogue_idle_up",
-        frames: this.anims.generateFrameNumbers("rogue", { start: 0, end: 0 }), // Use the first up frame
+        frames: this.anims.generateFrameNumbers("rogue", { start: 0, end: 0 }),
         frameRate: 10,
         repeat: -1,
       });
 
       this.anims.create({
         key: "rogue_idle_left",
-        frames: this.anims.generateFrameNumbers("rogue", { start: 6, end: 6 }), // Use the first left frame
+        frames: this.anims.generateFrameNumbers("rogue", { start: 6, end: 6 }),
         frameRate: 10,
         repeat: -1,
       });
 
       this.anims.create({
         key: "rogue_idle_right",
-        frames: this.anims.generateFrameNumbers("rogue", { start: 3, end: 3 }), // Use the first right frame
+        frames: this.anims.generateFrameNumbers("rogue", { start: 3, end: 3 }),
         frameRate: 10,
         repeat: -1,
       });
@@ -160,39 +171,32 @@ export default class BootScene extends Scene {
       // Walking animations for each direction
       this.anims.create({
         key: "rogue_walk_up",
-        frames: this.anims.generateFrameNumbers("rogue", { start: 0, end: 2 }), // First row
+        frames: this.anims.generateFrameNumbers("rogue", { start: 0, end: 2 }),
         frameRate: 10,
         repeat: -1,
       });
 
       this.anims.create({
         key: "rogue_walk_right",
-        frames: this.anims.generateFrameNumbers("rogue", { start: 3, end: 5 }), // Second row
+        frames: this.anims.generateFrameNumbers("rogue", { start: 3, end: 5 }),
         frameRate: 10,
         repeat: -1,
       });
 
       this.anims.create({
         key: "rogue_walk_left",
-        frames: this.anims.generateFrameNumbers("rogue", { start: 6, end: 8 }), // Third row
+        frames: this.anims.generateFrameNumbers("rogue", { start: 6, end: 8 }),
         frameRate: 10,
         repeat: -1,
       });
 
       this.anims.create({
         key: "rogue_walk_down",
-        frames: this.anims.generateFrameNumbers("rogue", { start: 9, end: 11 }), // Fourth row
+        frames: this.anims.generateFrameNumbers("rogue", { start: 9, end: 11 }),
         frameRate: 10,
         repeat: -1,
       });
       console.log("Animations created successfully");
-
-      // Start the world scene
-      console.log("Starting WorldScene...");
-      this.scene.start("WorldScene", {
-        socket: this.socket,
-        mapKey: this.mapKey
-      });
     } catch (error) {
       console.error("Error in BootScene create:", error);
     }

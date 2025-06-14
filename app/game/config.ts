@@ -1,14 +1,15 @@
 import { Types } from "phaser";
-import BootScene from "./scenes/BootScene";
+import { IntroScene } from "./scenes/IntroScene";
 import WorldScene from "./scenes/WorldScene";
+import BootScene from "./scenes/BootScene";
 import Scene3 from "./scenes/Scene3";
 import Scene4 from "./scenes/Scene4";
 import TutorialScene from "./scenes/TutorialScene";
 import TourScene from "./scenes/TourScene";
 
-export const gameConfig: Types.Core.GameConfig = {
+export const gameConfig: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
-  parent: "game",
+  parent: "game-container",
   width: 800,
   height: 600,
   pixelArt: true,
@@ -19,7 +20,7 @@ export const gameConfig: Types.Core.GameConfig = {
       debug: false,
     },
   },
-  scene: [BootScene, WorldScene, Scene3, Scene4, TutorialScene, TourScene],
+  scene: [BootScene, IntroScene, WorldScene, Scene3, Scene4, TutorialScene, TourScene],
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,

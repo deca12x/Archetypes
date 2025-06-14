@@ -1,4 +1,5 @@
 import { Scene } from "phaser";
+import { MissionCard } from "../components/MissionCard";
 
 export default class Scene4 extends Scene {
   private tilemap: Phaser.Tilemaps.Tilemap | null = null;
@@ -13,6 +14,7 @@ export default class Scene4 extends Scene {
   private moveSpeed: number = 350;
   private collisionLayer: Phaser.Tilemaps.TilemapLayer | null = null;
   private groundDaytimeLayer: Phaser.Tilemaps.TilemapLayer | null = null;
+  private missionCard: MissionCard | null = null;
 
   constructor() {
     super({ key: "Scene4" });
@@ -97,6 +99,10 @@ export default class Scene4 extends Scene {
         volume: 0.5,
       });
     }
+
+    // Initialize mission card
+    this.missionCard = new MissionCard(this);
+    this.missionCard.show();
   }
 
   update(): void {

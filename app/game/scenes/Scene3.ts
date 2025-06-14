@@ -1,4 +1,5 @@
 import { Scene } from "phaser";
+import { MissionCard } from "../components/MissionCard";
 
 export default class Scene3 extends Scene {
   private tilemap: Phaser.Tilemaps.Tilemap | null = null;
@@ -12,6 +13,12 @@ export default class Scene3 extends Scene {
   } | null = null;
   private moveSpeed: number = 350;
   private collisionLayer: Phaser.Tilemaps.TilemapLayer | null = null;
+  private headRemains: Phaser.GameObjects.Image | null = null;
+  private headText: Phaser.GameObjects.Text | null = null;
+  private desertGateText: Phaser.GameObjects.Text | null = null;
+  private isNearHead: boolean = false;
+  private isNearGate: boolean = false;
+  private missionCard: MissionCard | null = null;
 
   constructor() {
     super({ key: "Scene3" });
@@ -129,6 +136,34 @@ export default class Scene3 extends Scene {
         }
       });
     });
+
+    // Add head remains text (initially invisible)
+    this.headText = this.add.text(0, 0, "The head... it's still warm...", {
+      fontSize: '24px',
+      color: '#ffffff',
+      fontFamily: 'Arial',
+      backgroundColor: '#000000',
+      padding: { x: 10, y: 5 }
+    });
+    this.headText.setOrigin(0.5);
+    this.headText.setDepth(1000);
+    this.headText.setAlpha(0);
+
+    // Add desert gate text (initially invisible)
+    this.desertGateText = this.add.text(0, 0, "The gate to the desert... where it all began.", {
+      fontSize: '24px',
+      color: '#ffffff',
+      fontFamily: 'Arial',
+      backgroundColor: '#000000',
+      padding: { x: 10, y: 5 }
+    });
+    this.desertGateText.setOrigin(0.5);
+    this.desertGateText.setDepth(1000);
+    this.desertGateText.setAlpha(0);
+
+    // Initialize mission card
+    this.missionCard = new MissionCard(this);
+    this.missionCard.show();
   }
 
   update(): void {
@@ -144,6 +179,44 @@ export default class Scene3 extends Scene {
           (this.scene as any).isTransitioning = true;
           this.scene.start('Scene4');
         }
+      }
+    }
+
+    // Check distance to head remains
+    if (this.headRemains && this.player) {
+      const distanceToHead = Phaser.Math.Distance.Between(
+        this.player.x,
+        this.player.y,
+        this.headRemains.x,
+        this.headRemains.y
+      );
+
+      if (distanceToHead < 100 && !this.isNearHead) {
+        this.isNearHead = true;
+        this.showHeadText();
+      } else if (distanceToHead >= 100 && this.isNearHead) {
+        this.isNearHead = false;
+        this.hideHeadText();
+      }
+    }
+
+    // Check if player is near the desert gate area (middle center)
+    if (this.player) {
+      const centerX = this.cameras.main.width / 2;
+      const centerY = this.cameras.main.height / 2;
+      const distanceToCenter = Phaser.Math.Distance.Between(
+        this.player.x,
+        this.player.y,
+        centerX,
+        centerY
+      );
+
+      if (distanceToCenter < 150 && !this.isNearGate) {
+        this.isNearGate = true;
+        this.showDesertGateText();
+      } else if (distanceToCenter >= 150 && this.isNearGate) {
+        this.isNearGate = false;
+        this.hideDesertGateText();
       }
     }
   }
@@ -180,6 +253,52 @@ export default class Scene3 extends Scene {
       this.player!.anims.play("rogue_walk_down", true);
     } else {
       this.player!.anims.play("rogue_idle_down", true);
+    }
+  }
+
+  private showHeadText() {
+    if (this.headText && this.headRemains) {
+      this.headText.setPosition(this.headRemains.x, this.headRemains.y - 50);
+      this.tweens.add({
+        targets: this.headText,
+        alpha: 1,
+        duration: 500,
+        ease: 'Power2'
+      });
+    }
+  }
+
+  private hideHeadText() {
+    if (this.headText) {
+      this.tweens.add({
+        targets: this.headText,
+        alpha: 0,
+        duration: 500,
+        ease: 'Power2'
+      });
+    }
+  }
+
+  private showDesertGateText() {
+    if (this.desertGateText && this.player) {
+      this.desertGateText.setPosition(this.player.x, this.player.y - 50);
+      this.tweens.add({
+        targets: this.desertGateText,
+        alpha: 1,
+        duration: 500,
+        ease: 'Power2'
+      });
+    }
+  }
+
+  private hideDesertGateText() {
+    if (this.desertGateText) {
+      this.tweens.add({
+        targets: this.desertGateText,
+        alpha: 0,
+        duration: 500,
+        ease: 'Power2'
+      });
     }
   }
 } 

@@ -56,14 +56,14 @@ export default class PauseScene extends Scene {
     background.setStrokeStyle(2, 0xffffff);
 
     // Create mission title
-    const title = this.add.text(0, -60, 'Main Mission', {
-      fontSize: '24px',
+    const title = this.add.text(0, -60, 'PAUSED', {
+      fontSize: '32px',
       color: '#ffffff',
       fontFamily: 'Arial'
     }).setOrigin(0.5);
 
     // Create mission description
-    const description = this.add.text(0, 0, 'Get to the marketplace\nbefore dark!', {
+    const description = this.add.text(0, 0, 'Press ESC to Resume', {
       fontSize: '20px',
       color: '#ffffff',
       fontFamily: 'Arial',

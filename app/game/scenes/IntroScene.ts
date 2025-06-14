@@ -106,8 +106,8 @@ export class IntroScene extends Scene {
       const videoWidth = this.videoTexture.width;
       const videoHeight = this.videoTexture.height;
 
-      // Calculate scale to fit width with extra zoom out
-      const scale = (gameWidth / videoWidth) * 0.4; // Reduce scale to 40% of original
+      // Calculate scale to fit width with maximum zoom out
+      const scale = (gameWidth / videoWidth) * 0.25; // Reduce scale to 25% of original for maximum zoom out
       const scaledWidth = videoWidth * scale;
       const scaledHeight = videoHeight * scale;
 

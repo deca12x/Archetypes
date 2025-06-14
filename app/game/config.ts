@@ -6,6 +6,7 @@ import Scene3 from "./scenes/Scene3";
 import Scene4 from "./scenes/Scene4";
 import TutorialScene from "./scenes/TutorialScene";
 import TourScene from "./scenes/TourScene";
+import PauseScene from "./scenes/PauseScene";
 
 export const gameConfig: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -20,7 +21,7 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
       debug: false,
     },
   },
-  scene: [BootScene, IntroScene, WorldScene, Scene3, Scene4, TutorialScene, TourScene],
+  scene: [BootScene, IntroScene, WorldScene, Scene3, Scene4, TutorialScene, TourScene, PauseScene],
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,

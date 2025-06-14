@@ -25,6 +25,7 @@ import { useUserDataStore } from "../../../lib/game/stores/userData";
 import { useChatStore } from "../../../lib/game/stores/chat";
 import { useUIStore } from "../../../lib/game/stores/ui";
 import { useSocket } from "@/lib/hooks/useSocket";
+import { MissionCard } from "../components/MissionCard";
 
 // Using string literal types instead of importing Direction from grid-engine
 type Direction = "up" | "down" | "left" | "right";
@@ -138,6 +139,7 @@ export default class WorldScene extends Scene {
   private chatGroupId: string = "";
   private adjacentPlayers: Set<string> = new Set();
   private backgroundMusic?: Phaser.Sound.BaseSound;
+  private missionCard: MissionCard | null = null;
 
   constructor() {
     super({ key: "WorldScene" });
@@ -248,6 +250,10 @@ export default class WorldScene extends Scene {
           }
         });
       });
+
+      // Initialize mission card
+      this.missionCard = new MissionCard(this);
+      this.missionCard.show();
 
       // Add mission card
       const missionCard = this.add.container(20, 20);

@@ -30,6 +30,8 @@ export default class BootScene extends Scene {
       socket: this.socket,
       mapKey: this.mapKey
     });
+    // Start PauseScene
+    this.scene.launch("PauseScene");
   }
 
   preload(): void {

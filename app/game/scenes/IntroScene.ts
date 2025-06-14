@@ -107,16 +107,22 @@ export class IntroScene extends Scene {
       const videoHeight = this.videoTexture.height;
 
       // Calculate scale to fit width with maximum zoom out
-      const scale = (gameWidth / videoWidth) * 0.25; // Reduce scale to 25% of original for maximum zoom out
+      const scale = Math.min(gameWidth / videoWidth, gameHeight / videoHeight) * 0.8; // Use 80% of the screen size
       const scaledWidth = videoWidth * scale;
       const scaledHeight = videoHeight * scale;
 
-      // Set video size with zoomed out scale
+      // Set video size with proper scale
       this.videoTexture.setDisplaySize(scaledWidth, scaledHeight);
       
       // Center the video
       this.videoTexture.setPosition(gameWidth / 2, gameHeight / 2);
       this.videoTexture.setOrigin(0.5, 0.5);
+
+      // Ensure video is ready before proceeding
+      this.videoTexture.on('videoready', () => {
+        console.log('Video is ready to play');
+        this.isVideoPlaying = true;
+      });
 
       // Add overlay image
       this.overlayImage = this.add.image(gameWidth / 2, gameHeight / 2, 'tutorial_overlay');
@@ -256,77 +262,49 @@ export class IntroScene extends Scene {
     });
   }
 
-  onVideoComplete() {
-    console.log("onVideoComplete called");
-    // Fade out and transition to WorldScene
-    this.tweens.add({
-      targets: this.cameras.main,
-      alpha: 0,
-      duration: 2000,
-      onComplete: () => {
-        console.log("Fade out complete, transitioning to WorldScene");
-        // Don't stop the music when transitioning
-        this.scene.start("WorldScene", {
-          socket: this.socket,
-          mapKey: this.mapKey,
-          music: this.backgroundMusic // Pass the music instance to the next scene
-        });
-      }
+  private onVideoComplete() {
+    console.log("Video completed, transitioning to next scene");
+    if (this.videoTexture) {
+      this.videoTexture.destroy();
+    }
+    if (this.backgroundMusic) {
+      this.backgroundMusic.stop();
+    }
+    
+    // Ensure clean transition
+    this.cameras.main.fade(1000, 0, 0, 0);
+    this.time.delayedCall(1000, () => {
+      this.scene.start("WorldScene", { 
+        socket: this.socket,
+        mapKey: this.mapKey
+      });
     });
   }
 
   private startIntro() {
-    if (this.startButton) {
-      this.startButton.destroy();
+    console.log("Starting intro sequence");
+    if (!this.videoTexture) {
+      console.error("Video texture not available");
+      this.skipIntro();
+      return;
     }
 
-    try {
-      // Create and play video
-      this.videoTexture = this.add.video(0, 0, 'scene1');
-      if (!this.videoTexture) {
-        console.error('Failed to create video texture');
-        this.skipIntro();
-        return;
-      }
-
-      // Calculate video dimensions to maintain aspect ratio
-      const gameWidth = this.scale.width;
-      const gameHeight = this.scale.height;
-      const videoWidth = this.videoTexture.width;
-      const videoHeight = this.videoTexture.height;
-
-      // Calculate scale to fit the video while maintaining aspect ratio
-      const scaleX = gameWidth / videoWidth;
-      const scaleY = gameHeight / videoHeight;
-      const scale = Math.max(scaleX, scaleY);
-
-      // Set video size and position
-      this.videoTexture.setDisplaySize(videoWidth * scale, videoHeight * scale);
-      this.videoTexture.setPosition(gameWidth / 2, gameHeight / 2);
-      this.videoTexture.setOrigin(0.5, 0.5);
-
-      // Start video playback
-      this.videoTexture.play(true);
+    // Ensure video is loaded and ready
+    if (this.videoTexture.video && this.videoTexture.video.readyState >= 2) {
+      this.videoTexture.play(false);
       this.isVideoPlaying = true;
-
+      
+      // Show skip text
       if (this.skipText) {
         this.skipText.setVisible(true);
       }
 
-      // Set up video end handler
-      this.videoTexture.on('complete', () => {
-        this.skipIntro();
+      // Show first message at 2 seconds
+      this.time.delayedCall(2000, () => {
+        this.showNextMessage();
       });
-
-      // Play background music
-      this.backgroundMusic = this.sound.add('background_music', {
-        volume: 0.5,
-        loop: true
-      });
-      this.backgroundMusic.play();
-
-    } catch (error) {
-      console.error('Error in startIntro:', error);
+    } else {
+      console.error("Video not ready to play");
       this.skipIntro();
     }
   }

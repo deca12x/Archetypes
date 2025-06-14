@@ -128,6 +128,13 @@ export default class WorldScene extends Scene {
   private socket: Socket | null = null;
   private mapKey: string = "maptest";
   private daylightOverlay: Phaser.GameObjects.Graphics | null = null;
+  private gridEngine: GridEngineInterface | null = null;
+  private roomId: string = "";
+  private isTransitioning: boolean = false;
+  private roomCodeText: Phaser.GameObjects.Text | null = null;
+  private remotePlayers: Map<string, Phaser.GameObjects.Sprite> = new Map();
+  private chatGroupId: string = "";
+  private adjacentPlayers: Set<string> = new Set();
 
   constructor() {
     super({ key: "WorldScene" });
@@ -167,18 +174,22 @@ export default class WorldScene extends Scene {
       console.log("Player initialized");
 
       // Set up keyboard input
-      this.cursors = this.input.keyboard.createCursorKeys();
-      this.wasdKeys = this.input.keyboard.addKeys({
-        up: Phaser.Input.Keyboard.KeyCodes.W,
-        down: Phaser.Input.Keyboard.KeyCodes.S,
-        left: Phaser.Input.Keyboard.KeyCodes.A,
-        right: Phaser.Input.Keyboard.KeyCodes.D,
-      }) as {
-        up: Phaser.Input.Keyboard.Key;
-        down: Phaser.Input.Keyboard.Key;
-        left: Phaser.Input.Keyboard.Key;
-        right: Phaser.Input.Keyboard.Key;
-      };
+      if (this.input && this.input.keyboard) {
+        this.cursors = this.input.keyboard.createCursorKeys();
+        this.wasdKeys = this.input.keyboard.addKeys({
+          up: Phaser.Input.Keyboard.KeyCodes.W,
+          down: Phaser.Input.Keyboard.KeyCodes.S,
+          left: Phaser.Input.Keyboard.KeyCodes.A,
+          right: Phaser.Input.Keyboard.KeyCodes.D,
+        }) as {
+          up: Phaser.Input.Keyboard.Key;
+          down: Phaser.Input.Keyboard.Key;
+          left: Phaser.Input.Keyboard.Key;
+          right: Phaser.Input.Keyboard.Key;
+        };
+      } else {
+        console.error('Input system not available in WorldScene');
+      }
 
       // Start background music
       if (!this.sound.get("background_music")) {
@@ -215,13 +226,17 @@ export default class WorldScene extends Scene {
   }
 
   setupGridEngineListeners() {
+    if (!this.gridEngine) return;
+    
     // Listen for movement started
     this.gridEngine
       .movementStarted()
       .subscribe(({ charId, direction }: MovementEvent) => {
         if (charId === "player") {
-          const position = this.gridEngine.getPosition("player");
-          this.updatePlayerMovement(position.x, position.y, direction);
+          const position = this.gridEngine?.getPosition("player");
+          if (position) {
+            this.updatePlayerMovement(position.x, position.y, direction);
+          }
         }
       });
 
@@ -230,8 +245,10 @@ export default class WorldScene extends Scene {
       .movementStopped()
       .subscribe(({ charId, direction }: MovementEvent) => {
         if (charId === "player") {
-          const position = this.gridEngine.getPosition("player");
-          this.updatePlayerMovement(position.x, position.y, direction);
+          const position = this.gridEngine?.getPosition("player");
+          if (position) {
+            this.updatePlayerMovement(position.x, position.y, direction);
+          }
         }
       });
 
@@ -240,8 +257,10 @@ export default class WorldScene extends Scene {
       .directionChanged()
       .subscribe(({ charId, direction }: MovementEvent) => {
         if (charId === "player") {
-          const position = this.gridEngine.getPosition("player");
-          this.updatePlayerMovement(position.x, position.y, direction);
+          const position = this.gridEngine?.getPosition("player");
+          if (position) {
+            this.updatePlayerMovement(position.x, position.y, direction);
+          }
         }
       });
   }
@@ -252,8 +271,8 @@ export default class WorldScene extends Scene {
       // Check if player touches the top border
       if (this.player.y - this.player.height / 2 <= 0) {
         // Only switch scene if not already switching
-        if (!this.scene.isTransitioning) {
-          this.scene.isTransitioning = true;
+        if (!this.isTransitioning) {
+          this.isTransitioning = true;
           // Don't stop music, just start next scene
           this.scene.start('Scene3');
         }
@@ -389,253 +408,80 @@ export default class WorldScene extends Scene {
   setupSocketHandlers() {
     if (!this.socket) return;
 
-    // Handle room creation response
-    this.socket.on(
-      "roomCreated",
-      ({
-        roomId,
-        playerId,
-        sprite,
-      }: {
-        roomId: string;
-        playerId: string;
-        sprite: string;
-      }) => {
-        this.roomId = roomId;
-        this.playerId = playerId;
-
-        // Set the player's sprite texture based on server assignment
-        this.player.setTexture(sprite);
-
-        // Update the room code text
-        this.roomCodeText.setText(`Room: ${roomId}`);
-        console.log(
-          `Joined room ${roomId} as player ${playerId} with sprite ${sprite}`
-        );
-      }
-    );
-
-    // Handle when other players join
-    this.socket.on(
-      "playerJoined",
-      ({ playerId, player }: { playerId: string; player: Player }) => {
-        if (playerId !== this.playerId) {
-          this.addRemotePlayer(playerId, player);
-        }
-      }
-    );
-
-    // Handle player movement updates
-    this.socket.on(
-      "playerMoved",
-      ({
-        playerId,
-        movement,
-      }: {
-        playerId: string;
-        movement: PlayerMovement;
-      }) => {
-        if (playerId !== this.playerId && this.remotePlayers.has(playerId)) {
-          this.updateRemotePlayerPosition(playerId, movement);
-        }
-      }
-    );
-
-    // Handle players leaving
-    this.socket.on("playerLeft", ({ playerId }: { playerId: string }) => {
-      if (this.remotePlayers.has(playerId)) {
-        this.removeRemotePlayer(playerId);
+    this.socket.on("roomCreated", (data: { roomId: string }) => {
+      this.roomId = data.roomId;
+      if (this.roomCodeText) {
+        this.roomCodeText.setText(`Room Code: ${data.roomId}`);
       }
     });
 
-    // Add handler for when we join a room successfully
-    this.socket.on(
-      "roomJoined",
-      ({
-        roomId,
-        playerId,
-        players,
-        sprite,
-      }: {
-        roomId: string;
-        playerId: string;
-        players: Record<string, Player>;
-        sprite: string;
-      }) => {
-        this.roomId = roomId;
-        this.playerId = playerId;
-
-        // Set the player's sprite texture based on server assignment
-        this.player.setTexture(sprite);
-
-        // Update the room code text
-        this.roomCodeText.setText(`Room: ${roomId}`);
-        console.log(
-          `Joined room ${roomId} as player ${playerId} with sprite ${sprite}`
-        );
-
-        // Create sprites for existing players
-        Object.entries(players).forEach(([id, playerData]) => {
-          if (id !== playerId) {
-            this.addRemotePlayer(id, playerData);
-          }
-        });
+    this.socket.on("playerJoined", (data: { playerId: string, username: string }) => {
+      if (data.playerId !== this.playerId) {
+        this.addRemotePlayer(data.playerId, { username: data.username });
       }
-    );
-
-    // Add handler for room not found errors
-    this.socket.on("roomError", ({ message }: { message: string }) => {
-      console.error(`Room error: ${message}`);
-      this.roomCodeText.setText(`Error: ${message}`);
     });
 
-    // Handle chat messages from other players
-    this.socket.on("chatMessageReceived", (message: any) => {
-      console.log(
-        "Chat message received:",
-        message.message,
-        "groupId:",
-        message.groupId,
-        "our groupId:",
-        this.chatGroupId
-      );
+    this.socket.on("playerLeft", (data: { playerId: string }) => {
+      this.removeRemotePlayer(data.playerId);
+    });
 
-      // If we're not in proximity mode, ignore the message
-      if (!this.chatGroupId) return;
-
-      // Get the IDs from both group IDs to compare
-      const ourGroupIds = this.chatGroupId.split("-").sort();
-      const messageGroupIds = message.groupId.split("-").sort();
-
-      // Check if we share at least one player ID with the message group
-      // This ensures messages will transmit between connected players
-      const playerOverlap = ourGroupIds.some((id) =>
-        messageGroupIds.includes(id)
-      );
-
-      if (playerOverlap) {
-        useChatStore.getState().addMessage(message);
+    this.socket.on("chatMessage", (data: { playerId: string, message: string }) => {
+      if (data.playerId !== this.playerId) {
+        // Handle incoming chat message
+        console.log(`Chat from ${data.playerId}: ${data.message}`);
       }
     });
   }
 
-  // Method to create/join a room
   createOrJoinRoom(username: string) {
-    if (this.socket) {
-      this.socket.emit("createRoom", { username });
-    }
+    if (!this.socket) return;
+    this.socket.emit("createOrJoinRoom", { username });
   }
 
-  // Method to join an existing room
   joinRoom(roomId: string, username: string) {
-    if (this.socket) {
-      this.socket.emit("joinRoom", { roomId, username });
-      // Update the room code text immediately (will be confirmed when we get the roomJoined event)
-      this.roomCodeText.setText(`Room: ${roomId}`);
-    }
+    if (!this.socket) return;
+    this.socket.emit("joinRoom", { roomId, username });
   }
 
-  // Add methods for handling remote players
-  addRemotePlayer(playerId: string, playerData: Player) {
-    // Create sprite for remote player
+  addRemotePlayer(playerId: string, playerData: { username: string }) {
+    if (!this.player) return;
     const remotePlayer = this.add.sprite(
-      playerData.x * 32,
-      playerData.y * 32,
-      playerData.sprite
+      this.player.x,
+      this.player.y,
+      "rogue"
     );
-    remotePlayer.setDepth(1);
-
-    // Add to remotePlayers map
+    remotePlayer.setScale(1);
     this.remotePlayers.set(playerId, remotePlayer);
-
-    // If grid engine is initialized, add remote player to grid engine
-    try {
-      const remoteCharId = `remote_${playerId}`;
-
-      if (!this.gridEngine.hasCharacter(remoteCharId)) {
-        this.gridEngine.addCharacter({
-          id: remoteCharId,
-          sprite: remotePlayer,
-          startPosition: { x: playerData.x, y: playerData.y },
-          walkingAnimationMapping: {
-            up: {
-              leftFoot: 9,
-              standing: 10,
-              rightFoot: 11,
-            },
-            down: {
-              leftFoot: 0,
-              standing: 1,
-              rightFoot: 2,
-            },
-            left: {
-              leftFoot: 3,
-              standing: 4,
-              rightFoot: 5,
-            },
-            right: {
-              leftFoot: 6,
-              standing: 7,
-              rightFoot: 8,
-            },
-          },
-          facingDirection: playerData.direction as Direction,
-        });
-      }
-    } catch (error) {
-      console.error("Error adding remote player to grid engine:", error);
-    }
   }
 
   updateRemotePlayerPosition(playerId: string, movement: PlayerMovement) {
     const remotePlayer = this.remotePlayers.get(playerId);
-    if (!remotePlayer) return;
-
-    // Get previous position to determine if the player is moving
-    const currentX = remotePlayer.x / 32;
-    const currentY = remotePlayer.y / 32;
-    const isMoving = currentX !== movement.x || currentY !== movement.y;
-
-    // Update sprite position
-    remotePlayer.x = movement.x * 32;
-    remotePlayer.y = movement.y * 32;
-
-    // Try to update grid engine position if it exists
-    try {
-      const remoteCharId = `remote_${playerId}`;
-      if (this.gridEngine.hasCharacter(remoteCharId)) {
-        this.gridEngine.setPosition(remoteCharId, {
-          x: movement.x,
-          y: movement.y,
-        });
-        this.gridEngine.turnTowards(
-          remoteCharId,
-          movement.direction as Direction
-        );
+    if (remotePlayer) {
+      remotePlayer.x = movement.x;
+      remotePlayer.y = movement.y;
+      // Update animation based on direction
+      switch (movement.direction) {
+        case "left":
+          remotePlayer.anims.play("rogue_walk_left", true);
+          break;
+        case "right":
+          remotePlayer.anims.play("rogue_walk_right", true);
+          break;
+        case "up":
+          remotePlayer.anims.play("rogue_walk_up", true);
+          break;
+        case "down":
+          remotePlayer.anims.play("rogue_walk_down", true);
+          break;
       }
-    } catch (error) {
-      console.error("Error updating remote player in grid engine:", error);
     }
   }
 
   removeRemotePlayer(playerId: string) {
-    // Remove sprite
     const remotePlayer = this.remotePlayers.get(playerId);
     if (remotePlayer) {
       remotePlayer.destroy();
-    }
-
-    // Remove from map
-    this.remotePlayers.delete(playerId);
-
-    // Try to remove from grid engine if it exists
-    try {
-      const remoteCharId = `remote_${playerId}`;
-      if (this.gridEngine.hasCharacter(remoteCharId)) {
-        this.gridEngine.removeCharacter(remoteCharId);
-      }
-    } catch (error) {
-      console.error("Error removing remote player from grid engine:", error);
+      this.remotePlayers.delete(playerId);
     }
   }
 
@@ -650,112 +496,61 @@ export default class WorldScene extends Scene {
   }
 
   checkAdjacentPlayers() {
-    if (!this.socket || !this.roomId || !this.playerId) return;
+    if (!this.socket || !this.roomId || !this.playerId || !this.gridEngine) return;
 
     const playerPosition = this.gridEngine.getPosition("player");
     if (!playerPosition) return;
 
     // Store previous adjacent players for comparison
-    const previousAdjacentPlayers = new Map(this.adjacentPlayers);
-
-    // Clear current adjacent players
+    const previousAdjacentPlayers = new Set(this.adjacentPlayers);
     this.adjacentPlayers.clear();
 
-    // Direct adjacency check - players within 1 tile
-    this.remotePlayers.forEach((sprite, playerId) => {
+    // Check each remote player
+    for (const [playerId, remotePlayer] of this.remotePlayers.entries()) {
       const remoteCharId = `remote_${playerId}`;
+      if (!this.gridEngine.hasCharacter(remoteCharId)) continue;
 
-      if (this.gridEngine.hasCharacter(remoteCharId)) {
-        const remotePosition = this.gridEngine.getPosition(remoteCharId);
+      const remotePosition = this.gridEngine.getPosition(remoteCharId);
+      if (!remotePosition) continue;
 
-        // Check if player is adjacent (Manhattan distance of 1)
-        const dx = Math.abs(remotePosition.x - playerPosition.x);
-        const dy = Math.abs(remotePosition.y - playerPosition.y);
+      // Calculate distance (Manhattan distance for simplicity)
+      const dx = Math.abs(playerPosition.x - remotePosition.x);
+      const dy = Math.abs(playerPosition.y - remotePosition.y);
 
-        if (dx + dy <= 1) {
-          // This player is adjacent, add to our map
-          this.adjacentPlayers.set(playerId, {
-            id: playerId,
-            x: remotePosition.x,
-            y: remotePosition.y,
-            direction: this.gridEngine.getFacingDirection(remoteCharId),
-            username: "Player",
-            sprite: "",
-          });
-        }
+      if (dx + dy <= 1) {
+        // This player is adjacent, add to our set
+        this.adjacentPlayers.add(playerId);
       }
-    });
-
-    // Get the chat store
-    const chatStore = useChatStore.getState();
-
-    // Determine if we were or are now in proximity chat
-    const wasInProximityMode = !!this.chatGroupId;
-    const isNowInProximityMode = this.adjacentPlayers.size > 0;
-
-    // Handle transition into proximity mode
-    if (!wasInProximityMode && isNowInProximityMode) {
-      // Generate a group ID with only our ID and adjacent players
-      const playerIds = [
-        this.playerId,
-        ...Array.from(this.adjacentPlayers.keys()),
-      ].sort();
-      this.chatGroupId = playerIds.join("-");
-
-      // Update chat UI
-      chatStore.setProximityMode(true);
-      chatStore.setActiveGroupId(this.chatGroupId);
-
-      console.log(
-        "Started proximity chat with adjacent players:",
-        this.adjacentPlayers
-      );
     }
-    // Handle transition out of proximity mode
-    else if (wasInProximityMode && !isNowInProximityMode) {
-      chatStore.setProximityMode(false);
-      chatStore.setActiveGroupId(null);
-      this.chatGroupId = null;
 
-      console.log("Left proximity chat - no adjacent players");
+    // If adjacency changed, update chat group
+    let adjacencyChanged = false;
+
+    // Check if any player was added
+    for (const playerId of this.adjacentPlayers) {
+      if (!previousAdjacentPlayers.has(playerId)) {
+        adjacencyChanged = true;
+        break;
+      }
     }
-    // Handle changes to the proximity group
-    else if (isNowInProximityMode) {
-      // Check if the adjacency has changed
-      let adjacencyChanged = false;
 
-      // Check if any player was added
-      for (const playerId of this.adjacentPlayers.keys()) {
-        if (!previousAdjacentPlayers.has(playerId)) {
+    // Check if any player was removed
+    if (!adjacencyChanged) {
+      for (const playerId of previousAdjacentPlayers) {
+        if (!this.adjacentPlayers.has(playerId)) {
           adjacencyChanged = true;
           break;
         }
       }
+    }
 
-      // Check if any player was removed
-      if (!adjacencyChanged) {
-        for (const playerId of previousAdjacentPlayers.keys()) {
-          if (!this.adjacentPlayers.has(playerId)) {
-            adjacencyChanged = true;
-            break;
-          }
-        }
-      }
-
-      // If adjacency changed, update the group ID
-      if (adjacencyChanged) {
-        const playerIds = [
-          this.playerId,
-          ...Array.from(this.adjacentPlayers.keys()),
-        ].sort();
-        const newGroupId = playerIds.join("-");
-
-        // Update group ID
-        this.chatGroupId = newGroupId;
-        chatStore.setActiveGroupId(this.chatGroupId);
-
-        console.log("Proximity chat group updated:", this.adjacentPlayers);
-      }
+    if (adjacencyChanged) {
+      // Create new chat group ID from sorted player IDs
+      const playerIds = [
+        this.playerId,
+        ...Array.from(this.adjacentPlayers)
+      ].sort();
+      this.chatGroupId = playerIds.join("-");
     }
   }
 

@@ -30,5 +30,8 @@
     ".next/types/**/*.ts",
     "lib/game/types/**/*.d.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "public/assets/tilesets/tiled/**/*.tsx"
+  ]
 }

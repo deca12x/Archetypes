@@ -1,6 +1,26 @@
 import { Types } from "phaser";
 import { Maps, Tilesets } from "@/lib/game/constants/assets";
 
+// Define scene functions
+function create(this: Phaser.Scene) {
+  // Create the map
+  const map = this.make.tilemap({ key: Maps.DESERT_GATE });
+  const tileset = map.addTilesetImage(Tilesets.DESERT_GATE);
+  
+  if (tileset) {
+    // Create layers
+    map.createLayer("ground", tileset);
+    const collisionLayer = map.createLayer("collision", tileset);
+    if (collisionLayer) {
+      collisionLayer.setCollisionByExclusion([-1]);
+    }
+  }
+}
+
+function update(this: Phaser.Scene) {
+  // Update logic here
+}
+
 export const gameConfig: Types.Core.GameConfig = {
   type: Phaser.AUTO,
   parent: "game",
@@ -10,17 +30,17 @@ export const gameConfig: Types.Core.GameConfig = {
   physics: {
     default: "arcade",
     arcade: {
-      gravity: { y: 0 },
+      gravity: { x: 0, y: 0 },
       debug: false,
     },
   },
   scene: {
     preload: function (this: Phaser.Scene) {
       // Load tileset
-      this.load.image(Tilesets.MAPTEST, "/assets/tilesets/maptest.png");
+      this.load.image(Tilesets.DESERT_GATE, "/assets/tilesets/desert_gate.png");
       
       // Load map
-      this.load.tilemapTiledJSON(Maps.MAP, "/assets/maps/custom_map.json");
+      this.load.tilemapTiledJSON(Maps.DESERT_GATE, "/assets/maps/desert_gate.json");
       
       // Load player sprite
       this.load.spritesheet("player", "/assets/characters/wizard.png", {
@@ -28,6 +48,8 @@ export const gameConfig: Types.Core.GameConfig = {
         frameHeight: 48,
       });
     },
+    create: create,
+    update: update,
   },
   scale: {
     mode: Phaser.Scale.FIT,
@@ -54,9 +76,9 @@ export const gameConfig: Types.Core.GameConfig = {
       // Load assets before the game starts
       const assets = [
         // Tilesets
-        { key: Tilesets.MAPTEST, path: "/assets/tilesets/maptest.png" },
+        { key: Tilesets.DESERT_GATE, path: "/assets/tilesets/desert_gate.png" },
         // Map
-        { key: Maps.MAP, path: "/assets/maps/custom_map.json" },
+        { key: Maps.DESERT_GATE, path: "/assets/maps/desert_gate.json" },
         // Characters
         { key: "wizard", path: "/assets/characters/wizard.png" },
         { key: "explorer", path: "/assets/characters/explorer.png" },

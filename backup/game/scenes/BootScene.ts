@@ -65,8 +65,8 @@ export default class BootScene extends Scene {
   }
 
   loadImages(): void {
-    console.log("Loading tileset:", Tilesets.MAPTEST);
-    this.load.image(Tilesets.MAPTEST, `assets/tilesets/${Tilesets.MAPTEST}.png`);
+    console.log("Loading tileset:", Tilesets.DESERT_GATE);
+    this.load.image(Tilesets.DESERT_GATE, `assets/tilesets/${Tilesets.DESERT_GATE}.png`);
   }
 
   loadMaps(): void {

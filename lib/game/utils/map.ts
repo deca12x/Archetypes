@@ -1,10 +1,11 @@
 import { Tilemaps } from "phaser";
-import WorldScene from "../../../app/game/scenes/WorldScene";
+import WorldScene from "../../../backup/game/scenes/WorldScene";
 import { useUserDataStore } from "../stores/userData";
 import { Layers, Sprites } from "../constants/assets";
 import { PLAYER_SIZE } from "../constants/game";
 
 export const getPlayerPosition = (scene: WorldScene) => {
+  if (!scene.gridEngine) return { x: 0, y: 0 };
   const { x, y } = scene.gridEngine.getPosition("player") ?? { x: 0, y: 0 };
 
   return {
@@ -14,9 +15,10 @@ export const getPlayerPosition = (scene: WorldScene) => {
 };
 
 export const getCurrentPlayerTile = (scene: WorldScene) => {
-  const { cameras, tilemap } = scene;
+  if (!scene.tilemap) return undefined;
+  const { cameras } = scene;
   const { x, y } = getPlayerPosition(scene);
-  const tile = tilemap.getTileAtWorldXY(x, y, true, cameras.main, Layers.WORLD);
+  const tile = scene.tilemap.getTileAtWorldXY(x, y, true, cameras.main, Layers.DESERT_GATE);
 
   if (!tile) {
     return;
@@ -46,6 +48,7 @@ export const savePlayerPosition = (scene: WorldScene) => {
 
   if (
     currentTile &&
+    scene.gridEngine &&
     (userData.position?.x !== currentTile.x ||
       userData.position?.y !== currentTile.y ||
       userData.position?.map !== scene.map)

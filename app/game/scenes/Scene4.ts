@@ -73,18 +73,22 @@ export default class Scene4 extends Scene {
     }
 
     // Set up keyboard input
-    this.cursors = this.input.keyboard.createCursorKeys();
-    this.wasdKeys = this.input.keyboard.addKeys({
-      up: Phaser.Input.Keyboard.KeyCodes.W,
-      down: Phaser.Input.Keyboard.KeyCodes.S,
-      left: Phaser.Input.Keyboard.KeyCodes.A,
-      right: Phaser.Input.Keyboard.KeyCodes.D,
-    }) as {
-      up: Phaser.Input.Keyboard.Key;
-      down: Phaser.Input.Keyboard.Key;
-      left: Phaser.Input.Keyboard.Key;
-      right: Phaser.Input.Keyboard.Key;
-    };
+    if (this.input && this.input.keyboard) {
+      this.cursors = this.input.keyboard.createCursorKeys();
+      this.wasdKeys = this.input.keyboard.addKeys({
+        up: Phaser.Input.Keyboard.KeyCodes.W,
+        down: Phaser.Input.Keyboard.KeyCodes.S,
+        left: Phaser.Input.Keyboard.KeyCodes.A,
+        right: Phaser.Input.Keyboard.KeyCodes.D,
+      }) as {
+        up: Phaser.Input.Keyboard.Key;
+        down: Phaser.Input.Keyboard.Key;
+        left: Phaser.Input.Keyboard.Key;
+        right: Phaser.Input.Keyboard.Key;
+      };
+    } else {
+      console.error('Input system not available in Scene4');
+    }
 
     // Continue background music if not already playing
     if (!this.sound.get("background_music")) {

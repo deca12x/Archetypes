@@ -53,7 +53,7 @@ export default class TourScene extends Scene {
   preload() {
     console.log("TourScene preload started");
     // Load the map
-    this.load.tilemapTiledJSON(Maps.PALLET_TOWN, '/assets/maps/pallet_town.json');
+    this.load.tilemapTiledJSON(Maps.DESERT_GATE, '/assets/maps/desert_gate.json');
     
     // Load tilesets
     Object.values(Tilesets).forEach((tileset) => {
@@ -66,7 +66,7 @@ export default class TourScene extends Scene {
     console.log("TourScene create started");
     
     // Create the map
-    this.map = this.make.tilemap({ key: Maps.PALLET_TOWN });
+    this.map = this.make.tilemap({ key: Maps.DESERT_GATE });
     
     // Add tilesets
     const all_tilesets = Object.values(Tilesets).reduce(

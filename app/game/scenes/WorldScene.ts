@@ -203,6 +203,93 @@ export default class WorldScene extends Scene {
         });
         this.backgroundMusic.play();
       }
+
+      // Show the third message after a delay
+      this.time.delayedCall(2000, () => {
+        const message = "There — just past the ridge.\nIf I don't trade now, I'm done.";
+        const messageText = this.add.text(this.cameras.main.width / 2, this.cameras.main.height * 0.8, message, {
+          fontSize: '32px',
+          fontFamily: 'Arial',
+          color: '#ffffff',
+          align: 'center',
+          stroke: '#000000',
+          strokeThickness: 4,
+          shadow: {
+            offsetX: 2,
+            offsetY: 2,
+            color: '#000',
+            blur: 2,
+            stroke: true,
+            fill: true
+          },
+          wordWrap: { width: this.cameras.main.width * 0.4 }
+        });
+        messageText.setOrigin(0.5, 0.5);
+        messageText.setDepth(2000);
+
+        // Fade in the message
+        messageText.setAlpha(0);
+        this.tweens.add({
+          targets: messageText,
+          alpha: 1,
+          duration: 1000,
+          onComplete: () => {
+            // Wait 3 seconds then fade out
+            this.time.delayedCall(3000, () => {
+              this.tweens.add({
+                targets: messageText,
+                alpha: 0,
+                duration: 1000,
+                onComplete: () => {
+                  messageText.destroy();
+                }
+              });
+            });
+          }
+        });
+      });
+
+      // Add mission card
+      const missionCard = this.add.container(20, 20);
+      
+      // Background
+      const cardBg = this.add.rectangle(0, 0, 300, 100, 0x000000, 0.7);
+      cardBg.setStrokeStyle(2, 0xffffff);
+      
+      // Mission title
+      const missionTitle = this.add.text(0, -30, 'MISSION', {
+        fontSize: '24px',
+        fontFamily: 'Arial',
+        color: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 4
+      });
+      missionTitle.setOrigin(0, 0.5);
+      
+      // Mission objective
+      const missionObjective = this.add.text(0, 10, 'Get to the marketplace\nbefore night falls', {
+        fontSize: '20px',
+        fontFamily: 'Arial',
+        color: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 3,
+        lineSpacing: 5
+      });
+      missionObjective.setOrigin(0, 0.5);
+      
+      // Add all elements to the container
+      missionCard.add([cardBg, missionTitle, missionObjective]);
+      missionCard.setDepth(1000); // Ensure it's above other elements
+      
+      // Add a subtle pulsing effect to the border
+      this.tweens.add({
+        targets: cardBg,
+        alpha: 0.5,
+        duration: 2000,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+      });
     } catch (error) {
       console.error("Error in create method:", error);
     }

@@ -84,6 +84,51 @@ export default class Scene3 extends Scene {
         volume: 0.5,
       });
     }
+
+    // Show the fourth message after a delay
+    this.time.delayedCall(2000, () => {
+      const message = "Burns like hell.\nHope the coolant holds.";
+      const messageText = this.add.text(this.cameras.main.width / 2, this.cameras.main.height * 0.8, message, {
+        fontSize: '32px',
+        fontFamily: 'Arial',
+        color: '#ffffff',
+        align: 'center',
+        stroke: '#000000',
+        strokeThickness: 4,
+        shadow: {
+          offsetX: 2,
+          offsetY: 2,
+          color: '#000',
+          blur: 2,
+          stroke: true,
+          fill: true
+        },
+        wordWrap: { width: this.cameras.main.width * 0.4 }
+      });
+      messageText.setOrigin(0.5, 0.5);
+      messageText.setDepth(2000);
+
+      // Fade in the message
+      messageText.setAlpha(0);
+      this.tweens.add({
+        targets: messageText,
+        alpha: 1,
+        duration: 1000,
+        onComplete: () => {
+          // Wait 3 seconds then fade out
+          this.time.delayedCall(3000, () => {
+            this.tweens.add({
+              targets: messageText,
+              alpha: 0,
+              duration: 1000,
+              onComplete: () => {
+                messageText.destroy();
+              }
+            });
+          });
+        }
+      });
+    });
   }
 
   update(): void {

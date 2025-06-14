@@ -312,14 +312,14 @@ export default class WorldScene extends Scene {
       console.log("Tileset added");
 
       // Create the main layer
-      const layer = this.tilemap.createLayer("desert_gate", tileset);
-      if (!layer) {
+      const groundLayer = this.tilemap.createLayer("ground", tileset, 0, 0);
+      if (!groundLayer) {
         throw new Error("Failed to create layer");
       }
       console.log("Layer created");
 
       // Create the collision layer (update 'collision' to your actual layer name if needed)
-      const collisionLayer = this.tilemap.createLayer("collision", tileset);
+      const collisionLayer = this.tilemap.createLayer("collision", tileset, 0, 0);
       if (collisionLayer) {
         collisionLayer.setCollisionByExclusion([-1]); // All non-empty tiles are collidable
         this.collisionLayer = collisionLayer;

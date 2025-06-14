@@ -72,10 +72,12 @@ export default class BootScene extends Scene {
       // Load all tilemaps
       this.load.tilemapTiledJSON("desert_gate", "/assets/maps/desert_gate.json");
       this.load.tilemapTiledJSON("scene3", "/assets/maps/scene3.json");
+      this.load.tilemapTiledJSON("scene4", "/assets/maps/scene4.json");
 
       // Load all tilesets
       this.load.image("desertgate", "/assets/tilesets/scene2map_topdown.webp");
       this.load.image("scene3", "/assets/tilesets/scene3.png");
+      this.load.image("scene4", "/assets/tilesets/desert_remains.png");
 
       // Load player sprite (wizard)
       this.load.spritesheet("player", "/assets/images/characters/wizard.png", {

@@ -26,13 +26,20 @@ export default class Scene4 extends Scene {
       console.error("Failed to load tileset 'scene4' for Scene4");
       return;
     }
-    // Create the ground_nighttime layer
-    this.tilemap.createLayer("ground_nighttime", tileset);
-    // Create the ground_daytime layer (keep invisible for now)
+
+    // Create the ground_nightime layer (default visible)
+    const groundNighttimeLayer = this.tilemap.createLayer("ground_nightime", tileset);
+    if (!groundNighttimeLayer) {
+      console.error("Failed to create ground_nightime layer");
+      return;
+    }
+
+    // Create the ground_daytime layer (invisible by default)
     this.groundDaytimeLayer = this.tilemap.createLayer("ground_daytime", tileset);
     if (this.groundDaytimeLayer) {
       this.groundDaytimeLayer.setVisible(false);
     }
+
     // Create the collision layer and set collision on all non-empty tiles
     this.collisionLayer = this.tilemap.createLayer("collision", tileset);
     if (this.collisionLayer) {

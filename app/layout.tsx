@@ -1,7 +1,14 @@
-"use client";
-
-import { Providers } from "@/components/providers";
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import "./global.css";
+import { Providers } from "./providers";
+
+const inter = Inter({ subsets: ["latin"] });
+
+export const metadata: Metadata = {
+  title: "Archetypes of the Collective Unconscious",
+  description: "A journey into the collective unconscious",
+};
 
 export default function RootLayout({
   children,
@@ -10,7 +17,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-black">
+      <body className={inter.className}>
         <Providers>{children}</Providers>
       </body>
     </html>

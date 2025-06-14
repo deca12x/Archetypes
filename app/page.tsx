@@ -1,44 +1,46 @@
 "use client";
 
-import { useAddress, useDisconnect } from "@thirdweb-dev/react";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
-import { Loader2 } from "lucide-react";
-import JoinRoom from "@/components/providers/JoinRoom";
+import { BackgroundAudio } from "@/components/BackgroundAudio";
 
 export default function Home() {
-  const address = useAddress();
-  const disconnect = useDisconnect();
   const router = useRouter();
 
-  useEffect(() => {
-    if (!address) {
-      router.push("/login");
-    }
-  }, [address, router]);
-
-  if (!address) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen flex flex-col gap-4 items-center justify-center">
-      <div className="text-2xl font-bold">
-        Archetypes of the Collective Unconscious
+    <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden">
+      <BackgroundAudio />
+      
+      {/* Video Background */}
+      <div className="absolute inset-0 w-full h-full overflow-hidden">
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute w-[120%] h-[120%] object-cover"
+          style={{
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+          }}
+        >
+          <source src="/assets/videos/home-background.webm" type="video/webm" />
+        </video>
+        <div className="absolute inset-0 bg-black/30" /> {/* Overlay for better text visibility */}
       </div>
 
-      <JoinRoom />
-
-      <button
-        onClick={disconnect}
-        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-      >
-        Logout
-      </button>
+      {/* Content */}
+      <div className="relative z-10 text-center">
+        <h1 className="text-4xl font-bold mb-8 text-white">
+          Archetypes of the Collective Unconscious
+        </h1>
+        <button
+          onClick={() => router.push("/game")}
+          className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white rounded-lg backdrop-blur-sm transition-all duration-300 text-xl font-semibold"
+        >
+          Start New Game
+        </button>
+      </div>
     </div>
   );
 } 

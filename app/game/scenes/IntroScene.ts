@@ -206,124 +206,40 @@ export class IntroScene extends Scene {
                 }
               });
             });
-
-            // Fade out click to start text
-            this.tweens.add({
-              targets: this.startButton,
-              alpha: 0,
-              duration: 500,
-              onComplete: () => {
-                if (this.startButton) {
-                  this.startButton.destroy();
-                }
-              }
-            });
           }
         } catch (error) {
-          console.warn('Error starting media:', error);
+          console.error('Error starting media:', error);
         }
       };
 
-      // Add click handler to start media
-      this.input.once('pointerdown', () => {
-        startMedia();
-      });
-
-      // Listen for video completion
-      this.videoTexture.on("complete", () => {
-        console.log("Video completed");
-        this.onVideoComplete();
-      });
-
-      // Add error handling for video
-      this.videoTexture.on("error", (error: any) => {
-        console.error("Video error:", error);
-      });
-
-      console.log("IntroScene setup complete");
+      startMedia();
     } catch (error) {
       console.error('Error in IntroScene create:', error);
-      this.skipIntro();
     }
   }
 
   private showNextMessage() {
-    if (this.currentMessageIndex >= this.messages.length) {
-      return;
-    }
-
-    const message = this.messages[this.currentMessageIndex];
-    this.messageText.setText(message);
-    this.messageText.setAlpha(1);
-    // Wait 3 seconds before moving to next message
-    this.time.delayedCall(3000, () => {
+    if (this.currentMessageIndex < this.messages.length) {
+      this.messageText.setText(this.messages[this.currentMessageIndex]);
       this.currentMessageIndex++;
-      this.showNextMessage();
-    });
+    }
   }
 
   private onVideoComplete() {
-    console.log("Video completed, transitioning to next scene");
-    if (this.videoTexture) {
-      this.videoTexture.destroy();
-    }
-    if (this.backgroundMusic) {
-      this.backgroundMusic.stop();
-    }
-    
-    // Ensure clean transition
-    this.cameras.main.fade(1000, 0, 0, 0);
-    this.time.delayedCall(1000, () => {
-      this.scene.start("WorldScene", { 
-        socket: this.socket,
-        mapKey: this.mapKey
-      });
-    });
+    console.log("Video completed");
+    this.skipIntro();
   }
 
   private startIntro() {
-    console.log("Starting intro sequence");
-    if (!this.videoTexture) {
-      console.error("Video texture not available");
-      this.skipIntro();
-      return;
-    }
-
-    // Ensure video is loaded and ready
-    if (this.videoTexture.video && this.videoTexture.video.readyState >= 2) {
+    if (this.videoTexture) {
       this.videoTexture.play(false);
       this.isVideoPlaying = true;
-      
-      // Show skip text
-      if (this.skipText) {
-        this.skipText.setVisible(true);
-      }
-
-      // Show first message at 2 seconds
-      this.time.delayedCall(2000, () => {
-        this.showNextMessage();
-      });
-    } else {
-      console.error("Video not ready to play");
-      this.skipIntro();
+      this.skipText?.setVisible(true);
     }
   }
 
   private skipIntro() {
-    if (this.videoTexture) {
-      this.videoTexture.stop();
-      this.videoTexture.destroy();
-    }
-    if (this.skipText) {
-      this.skipText.destroy();
-    }
-    this.isVideoPlaying = false;
-
-    // Start WorldScene with the background music
-    this.scene.start('WorldScene', {
-      socket: typeof window !== 'undefined' ? (window as any).__gameSocket : null,
-      mapKey: 'world',
-      music: this.backgroundMusic
-    });
+    console.log("Skipping intro");
+    this.scene.start("WorldScene", { socket: this.socket, mapKey: this.mapKey });
   }
-} 
+}

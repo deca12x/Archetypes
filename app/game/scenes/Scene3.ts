@@ -257,48 +257,28 @@ export default class Scene3 extends Scene {
   }
 
   private showHeadText() {
-    if (this.headText && this.headRemains) {
-      this.headText.setPosition(this.headRemains.x, this.headRemains.y - 50);
-      this.tweens.add({
-        targets: this.headText,
-        alpha: 1,
-        duration: 500,
-        ease: 'Power2'
-      });
+    if (this.headText && this.player) {
+      this.headText.setPosition(this.player.x, this.player.y - 50);
+      this.headText.setAlpha(1);
     }
   }
 
   private hideHeadText() {
     if (this.headText) {
-      this.tweens.add({
-        targets: this.headText,
-        alpha: 0,
-        duration: 500,
-        ease: 'Power2'
-      });
+      this.headText.setAlpha(0);
     }
   }
 
   private showDesertGateText() {
     if (this.desertGateText && this.player) {
       this.desertGateText.setPosition(this.player.x, this.player.y - 50);
-      this.tweens.add({
-        targets: this.desertGateText,
-        alpha: 1,
-        duration: 500,
-        ease: 'Power2'
-      });
+      this.desertGateText.setAlpha(1);
     }
   }
 
   private hideDesertGateText() {
     if (this.desertGateText) {
-      this.tweens.add({
-        targets: this.desertGateText,
-        alpha: 0,
-        duration: 500,
-        ease: 'Power2'
-      });
+      this.desertGateText.setAlpha(0);
     }
   }
 } 

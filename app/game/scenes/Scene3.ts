@@ -197,7 +197,7 @@ export default class Scene3 extends Scene {
       } else if (distanceToHead >= 100 && this.isNearHead) {
         this.isNearHead = false;
         this.hideHeadText();
-      }
+  }
     }
 
     // Check if player is near the desert gate area (middle center)
@@ -253,8 +253,8 @@ export default class Scene3 extends Scene {
       this.player!.anims.play("rogue_walk_down", true);
     } else {
       this.player!.anims.play("rogue_idle_down", true);
+      }
     }
-  }
 
   private showHeadText() {
     if (this.headText && this.headRemains) {

@@ -160,7 +160,7 @@ export default class WorldScene extends Scene {
     if (this.socket) {
       // Set up socket event handlers
       this.setupSocketHandlers();
-    }
+  }
   }
 
   create(): void {
@@ -170,7 +170,7 @@ export default class WorldScene extends Scene {
       this.children.each((child) => {
         child.destroy();
       });
-
+      
       // Initialize the tilemap first
       this.initializeTilemap();
       console.log("Tilemap initialized");

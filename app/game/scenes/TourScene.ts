@@ -1,7 +1,7 @@
 import { Scene } from "phaser";
 import { Maps, Tilesets, Layers } from "../../../lib/game/constants/assets";
 
-export default class TourScene extends Scene {
+export class TourScene extends Scene {
   private tourText!: Phaser.GameObjects.Text;
   private continueText!: Phaser.GameObjects.Text;
   private currentStep: number = 0;

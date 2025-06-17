@@ -1,6 +1,6 @@
 import { Scene } from "phaser";
 
-export default class PauseScene extends Scene {
+export class PauseScene extends Scene {
   private overlay: Phaser.GameObjects.Image | null = null;
   private missionCard: Phaser.GameObjects.Container | null = null;
   private isPaused: boolean = false;

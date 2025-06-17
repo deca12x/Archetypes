@@ -1,6 +1,6 @@
 import { Scene } from "phaser";
 
-export default class TutorialScene extends Scene {
+export class TutorialScene extends Scene {
   private continueText!: Phaser.GameObjects.Text;
   private tutorialText!: Phaser.GameObjects.Text;
   private currentStep: number = 0;

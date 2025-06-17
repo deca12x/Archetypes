@@ -4,9 +4,9 @@ import WorldScene from "./scenes/WorldScene";
 import BootScene from "./scenes/BootScene";
 import Scene3 from "./scenes/Scene3";
 import Scene4 from "./scenes/Scene4";
-import TutorialScene from "./scenes/TutorialScene";
-import TourScene from "./scenes/TourScene";
-import PauseScene from "./scenes/PauseScene";
+import { TutorialScene }from "./scenes/TutorialScene";
+import { TourScene } from "./scenes/TourScene";
+import { PauseScene } from "./scenes/PauseScene";
 
 export const gameConfig: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,

@@ -197,7 +197,11 @@ export default class Scene3 extends Scene {
       } else if (distanceToHead >= 100 && this.isNearHead) {
         this.isNearHead = false;
         this.hideHeadText();
+<<<<<<< clean-pr-branch
   }
+=======
+      }
+>>>>>>> main
     }
 
     // Check if player is near the desert gate area (middle center)
@@ -253,6 +257,7 @@ export default class Scene3 extends Scene {
       this.player!.anims.play("rogue_walk_down", true);
     } else {
       this.player!.anims.play("rogue_idle_down", true);
+<<<<<<< clean-pr-branch
       }
     }
 
@@ -265,40 +270,61 @@ export default class Scene3 extends Scene {
         duration: 500,
         ease: 'Power2'
       });
+=======
+    }
+  }
+
+  private showHeadText() {
+    if (this.headText && this.player) {
+      this.headText.setPosition(this.player.x, this.player.y - 50);
+      this.headText.setAlpha(1);
+>>>>>>> main
     }
   }
 
   private hideHeadText() {
     if (this.headText) {
+<<<<<<< clean-pr-branch
       this.tweens.add({
         targets: this.headText,
         alpha: 0,
         duration: 500,
         ease: 'Power2'
       });
+=======
+      this.headText.setAlpha(0);
+>>>>>>> main
     }
   }
 
   private showDesertGateText() {
     if (this.desertGateText && this.player) {
       this.desertGateText.setPosition(this.player.x, this.player.y - 50);
+<<<<<<< clean-pr-branch
       this.tweens.add({
         targets: this.desertGateText,
         alpha: 1,
         duration: 500,
         ease: 'Power2'
       });
+=======
+      this.desertGateText.setAlpha(1);
+>>>>>>> main
     }
   }
 
   private hideDesertGateText() {
     if (this.desertGateText) {
+<<<<<<< clean-pr-branch
       this.tweens.add({
         targets: this.desertGateText,
         alpha: 0,
         duration: 500,
         ease: 'Power2'
       });
+=======
+      this.desertGateText.setAlpha(0);
+>>>>>>> main
     }
   }
 } 

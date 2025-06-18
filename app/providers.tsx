@@ -1,8 +1,9 @@
-'use client';
+"use client";
 
-import { ThirdwebProvider } from '@thirdweb-dev/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useState } from 'react';
+import React from "react";
+import { ThirdwebProvider } from "@thirdweb-dev/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useState } from "react";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   // Create a QueryClient only once per app instance
@@ -18,4 +19,4 @@ export function Providers({ children }: { children: React.ReactNode }) {
       </ThirdwebProvider>
     </QueryClientProvider>
   );
-} 
+}

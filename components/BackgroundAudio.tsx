@@ -1,4 +1,7 @@
-import { useEffect, useRef } from 'react';
+"use client";
+
+import React from "react";
+import { useEffect, useRef, useState } from "react";
 
 declare global {
   interface Window {
@@ -7,53 +10,65 @@ declare global {
   }
 }
 
-export const BackgroundAudio = () => {
-  const playerRef = useRef<any>(null);
+export function BackgroundAudio() {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
-    // Load YouTube IFrame API
-    const tag = document.createElement('script');
-    tag.src = "https://www.youtube.com/iframe_api";
-    const firstScriptTag = document.getElementsByTagName('script')[0];
-    firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
-
-    // Initialize YouTube player when API is ready
-    window.onYouTubeIframeAPIReady = () => {
-      playerRef.current = new window.YT.Player('youtube-player', {
-        height: '0',
-        width: '0',
-        videoId: 'hVFaaUEIpzE',
-        playerVars: {
-          'autoplay': 1,
-          'controls': 0,
-          'disablekb': 1,
-          'enablejsapi': 1,
-          'fs': 0,
-          'rel': 0,
-          'loop': 1,
-          'playlist': 'hVFaaUEIpzE'
-        },
-        events: {
-          'onReady': (event: any) => {
-            event.target.playVideo();
-            event.target.setVolume(50); // Set initial volume to 50%
-          },
-          'onError': (event: any) => {
-            console.error('YouTube player error:', event);
-          }
-        }
-      });
-    };
-
-    // Cleanup function
-    return () => {
-      if (playerRef.current) {
-        playerRef.current.destroy();
-      }
-    };
+    if (audioRef.current) {
+      audioRef.current.volume = 0.2;
+    }
   }, []);
 
+  const togglePlay = () => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+      } else {
+        audioRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
   return (
-    <div id="youtube-player" style={{ display: 'none' }} />
+    <div className="fixed bottom-4 left-4 z-50">
+      <audio ref={audioRef} src="/assets/sounds/game_soundtrack.mp3" loop />
+      <button
+        onClick={togglePlay}
+        className="bg-black/50 hover:bg-black/70 text-white p-2 rounded-full backdrop-blur-sm transition-colors"
+      >
+        {isPlaying ? (
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <rect x="6" y="4" width="4" height="16"></rect>
+            <rect x="14" y="4" width="4" height="16"></rect>
+          </svg>
+        ) : (
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+        )}
+      </button>
+    </div>
   );
-}; 
+}

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSocket } from "@/lib/hooks/useSocket";
+import { useSocket } from "../../lib/hooks/useSocket";
 
 // Define the response types
 interface CheckRoomResponse {

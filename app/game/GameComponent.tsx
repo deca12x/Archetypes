@@ -1,6 +1,7 @@
 // app/game/GameComponent.tsx
 "use client";
 
+import React from "react";
 import { AUTO, Scale, Game as PhaserGame } from "phaser";
 import { useState, useEffect, useRef } from "react";
 import GridEngine from "grid-engine";
@@ -10,7 +11,7 @@ import { useUIStore } from "../../lib/game/stores/ui";
 import { useChatStore } from "../../lib/game/stores/chat";
 import Loading from "./ui/Loading";
 import ChatWindow from "./ui/ChatWindow";
-import { useSocket } from "@/lib/hooks/useSocket";
+import { useSocket } from "../../lib/hooks/useSocket";
 import { IntroScene } from "./scenes/IntroScene";
 import { PauseScene } from "./scenes/PauseScene";
 

@@ -7,7 +7,7 @@ import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import JoinRoom from "../components/providers/JoinRoom";
 import { FaGithub, FaTwitter } from "react-icons/fa";
-import { BackgroundAudio } from "@/components/BackgroundAudio";
+import { BackgroundAudio } from "../components/BackgroundAudio";
 
 export default function Home() {
   const address = useAddress();

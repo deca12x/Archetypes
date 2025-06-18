@@ -4,7 +4,7 @@ import { Maps, Sprites, Tilesets } from "../../../lib/game/constants/assets";
 import { UIEvents } from "../../../lib/game/constants/events";
 import { dispatch } from "../../../lib/game/utils/ui";
 import { useUIStore } from "../../../lib/game/stores/ui";
-import { useSocket } from "@/lib/hooks/useSocket";
+import { useSocket } from "../../../lib/hooks/useSocket";
 import { Socket } from "socket.io-client";
 
 export default class BootScene extends Scene {

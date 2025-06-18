@@ -1,6 +1,6 @@
 import { Scene, GameObjects, Tilemaps, Physics } from "phaser";
 import { Socket } from "socket.io-client";
-import { Player } from "@/lib/socket/socketServer";
+import { Player } from "../../../lib/socket/socketServer";
 import {
   Sprites,
   Layers,

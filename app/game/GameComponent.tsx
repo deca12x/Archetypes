@@ -11,10 +11,10 @@ import { useUIStore } from "../../lib/game/stores/ui";
 import { useChatStore } from "../../lib/game/stores/chat";
 import Loading from "./ui/Loading";
 import ChatWindow from "./ui/ChatWindow";
-import { useSocket } from "@/lib/hooks/useSocket";
+import { useSocket } from "../../lib/hooks/useSocket";
 import { IntroScene } from "./scenes/IntroScene";
 import { PauseScene } from "./scenes/PauseScene";
-import RoomCodeDisplay from "@/components/RoomCodeDisplay";
+import RoomCodeDisplay from "../../components/RoomCodeDisplay";
 
 const GameComponent = () => {
   const [game, setGame] = useState<PhaserGame>();

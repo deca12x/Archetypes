@@ -6,10 +6,15 @@ export function useSocket() {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    // Connect to the main server port without path specification
-    const socketInstance = io({
-      transports: ["websocket", "polling"], // Allow both for better reliability
-    });
+    // Connect to the server with explicit URL
+    const socketInstance = io(
+      process.env.NODE_ENV === "production"
+        ? window.location.origin // In production, use same origin
+        : "http://localhost:3000", // In development, explicitly use port 3000
+      {
+        transports: ["websocket", "polling"],
+      }
+    );
 
     // Set up event listeners
     socketInstance.on("connect", () => {

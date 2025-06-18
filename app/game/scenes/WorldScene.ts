@@ -179,6 +179,9 @@ export default class WorldScene extends Scene {
       this.initializePlayer();
       console.log("Player initialized");
 
+      // Initialize GridEngine
+      this.initializeGridEngine();
+
       // Set up keyboard input
       if (this.input && this.input.keyboard) {
         this.cursors = this.input.keyboard.createCursorKeys();
@@ -540,6 +543,47 @@ export default class WorldScene extends Scene {
     }
   }
 
+  private initializeGridEngine(): void {
+    if (!this.tilemap || !this.player) {
+      console.error("Cannot initialize GridEngine: tilemap or player is null");
+      return;
+    }
+
+    try {
+      console.log("Initializing GridEngine...");
+
+      // Create the grid engine configuration
+      const gridEngineConfig: GridEngineConfig = {
+        characters: [
+          {
+            id: "player",
+            sprite: this.player,
+            startPosition: {
+              x: Math.floor(this.player.x / 16),
+              y: Math.floor(this.player.y / 16),
+            },
+            facingDirection: "down" as Direction,
+            speed: 4,
+          },
+        ],
+        collisionTilePropertyName: "collides",
+      };
+
+      // Initialize the grid engine
+      if (this.plugins && this.plugins.get("gridEngine")) {
+        this.gridEngine = this.plugins.get(
+          "gridEngine"
+        ) as unknown as GridEngineInterface;
+        this.gridEngine.create(this.tilemap, gridEngineConfig);
+        console.log("GridEngine initialized successfully");
+      } else {
+        console.error("GridEngine plugin not found");
+      }
+    } catch (error) {
+      console.error("Error initializing GridEngine:", error);
+    }
+  }
+
   // MULTIPLAYER METHODS
 
   setupSocketHandlers() {
@@ -556,6 +600,7 @@ export default class WorldScene extends Scene {
         playerId: string;
         sprite: string;
       }) => {
+        console.log("roomCreated event received:", roomId);
         this.roomId = roomId;
         this.playerId = playerId;
 
@@ -563,6 +608,7 @@ export default class WorldScene extends Scene {
         this.player?.setTexture(sprite);
 
         // Emit event for the React component to update the room code display
+        console.log("Emitting roomCodeUpdated event with code:", roomId);
         this.events.emit("roomCodeUpdated", roomId);
 
         console.log(
@@ -637,12 +683,25 @@ export default class WorldScene extends Scene {
   }
 
   createRoom(username: string) {
-    if (!this.socket) return;
+    if (!this.socket) {
+      console.error("Cannot create room: Socket is null");
+      return;
+    }
+    console.log("Emitting createRoom event with username:", username);
     this.socket.emit("createRoom", { username });
   }
 
   joinRoom(roomId: string, username: string) {
-    if (!this.socket) return;
+    if (!this.socket) {
+      console.error("Cannot join room: Socket is null");
+      return;
+    }
+    console.log(
+      "Emitting joinRoom event with roomId:",
+      roomId,
+      "and username:",
+      username
+    );
     this.socket.emit("joinRoom", { roomId, username });
   }
 

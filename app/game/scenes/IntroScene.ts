@@ -12,7 +12,7 @@ export class IntroScene extends Scene {
   private currentMessageIndex: number = 0;
   private readonly messages: string[] = [
     "Their cores are draining fast.\nNo juice, no protection.",
-    "Alright. No turning back.\nFind the market before night."
+    "Alright. No turning back.\nFind the market before night.",
   ];
   private skipText: GameObjects.Text | null = null;
   private isVideoPlaying: boolean = false;
@@ -31,16 +31,16 @@ export class IntroScene extends Scene {
 
   preload() {
     console.log("IntroScene preload started");
-    
+
     // Load the video
     this.load.video("scene1", "/assets/videos/scene1final_optimized.webm");
-    
+
     // Load background music
-    this.load.audio('background_music', '/assets/sounds/game_soundtrack.mp3');
-    
+    this.load.audio("background_music", "/assets/sounds/game_soundtrack.mp3");
+
     // Load overlay image
-    this.load.image('tutorial_overlay', '/assets/images/tutorial_overlay.png');
-    
+    this.load.image("tutorial_overlay", "/assets/images/tutorial_overlay.png");
+
     // Add loading event listeners
     this.load.on("progress", (value: number) => {
       console.log("Loading progress:", value);
@@ -57,34 +57,38 @@ export class IntroScene extends Scene {
 
   create() {
     console.log("IntroScene create started");
-    
+
     try {
       // Create start button
-      this.startButton = this.add.text(this.scale.width / 2, this.scale.height / 2, 'Click to Start', {
-        fontSize: '32px',
-        color: '#ffffff',
-        fontFamily: 'Arial'
-      }).setOrigin(0.5);
+      this.startButton = this.add
+        .text(this.scale.width / 2, this.scale.height / 2, "Click to Start", {
+          fontSize: "32px",
+          color: "#ffffff",
+          fontFamily: "Arial",
+        })
+        .setOrigin(0.5);
 
       // Make button interactive
       this.startButton.setInteractive();
-      this.startButton.on('pointerdown', () => {
+      this.startButton.on("pointerdown", () => {
         this.startIntro();
       });
 
       // Add skip text (initially hidden)
-      this.skipText = this.add.text(this.scale.width - 20, 20, 'Press SPACE to skip', {
-        fontSize: '16px',
-        color: '#ffffff',
-        fontFamily: 'Arial'
-      }).setOrigin(1, 0);
+      this.skipText = this.add
+        .text(this.scale.width - 20, 20, "Press SPACE to skip", {
+          fontSize: "16px",
+          color: "#ffffff",
+          fontFamily: "Arial",
+        })
+        .setOrigin(1, 0);
       this.skipText.setScrollFactor(0);
       this.skipText.setVisible(false);
 
       // Set up space key for skipping
       if (this.input && this.input.keyboard) {
-        const spaceKey = this.input.keyboard.addKey('SPACE');
-        spaceKey.on('down', () => {
+        const spaceKey = this.input.keyboard.addKey("SPACE");
+        spaceKey.on("down", () => {
           if (this.isVideoPlaying) {
             this.skipIntro();
           }
@@ -107,47 +111,52 @@ export class IntroScene extends Scene {
       const videoHeight = this.videoTexture.height;
 
       // Calculate scale to fit width with maximum zoom out
-      const scale = Math.min(gameWidth / videoWidth, gameHeight / videoHeight) * 0.8; // Use 80% of the screen size
+      const scale =
+        Math.min(gameWidth / videoWidth, gameHeight / videoHeight) * 0.8; // Use 80% of the screen size
       const scaledWidth = videoWidth * scale;
       const scaledHeight = videoHeight * scale;
 
       // Set video size with proper scale
       this.videoTexture.setDisplaySize(scaledWidth, scaledHeight);
-      
+
       // Center the video
       this.videoTexture.setPosition(gameWidth / 2, gameHeight / 2);
       this.videoTexture.setOrigin(0.5, 0.5);
 
       // Ensure video is ready before proceeding
-      this.videoTexture.on('videoready', () => {
-        console.log('Video is ready to play');
+      this.videoTexture.on("videoready", () => {
+        console.log("Video is ready to play");
         this.isVideoPlaying = true;
       });
 
       // Add overlay image
-      this.overlayImage = this.add.image(gameWidth / 2, gameHeight / 2, 'tutorial_overlay');
+      this.overlayImage = this.add.image(
+        gameWidth / 2,
+        gameHeight / 2,
+        "tutorial_overlay"
+      );
       this.overlayImage.setOrigin(0.5, 0.5);
       this.overlayImage.setDisplaySize(gameWidth * 0.5, gameHeight * 0.5);
       this.overlayImage.setAlpha(0);
       this.overlayImage.setDepth(1000);
 
       // Create message text with word wrap
-      this.messageText = this.add.text(gameWidth / 2, gameHeight * 0.8, '', {
-        fontSize: '32px',
-        fontFamily: 'Arial',
-        color: '#ffffff',
-        align: 'center',
-        stroke: '#000000',
+      this.messageText = this.add.text(gameWidth / 2, gameHeight * 0.8, "", {
+        fontSize: "32px",
+        fontFamily: "Arial",
+        color: "#ffffff",
+        align: "center",
+        stroke: "#000000",
         strokeThickness: 4,
         shadow: {
           offsetX: 2,
           offsetY: 2,
-          color: '#000',
+          color: "#000",
           blur: 2,
           stroke: true,
-          fill: true
+          fill: true,
         },
-        wordWrap: { width: gameWidth * 0.4 }
+        wordWrap: { width: gameWidth * 0.4 },
       });
       this.messageText.setOrigin(0.5, 0.5);
       this.messageText.setDepth(2000);
@@ -159,31 +168,31 @@ export class IntroScene extends Scene {
       this.tweens.add({
         targets: this.cameras.main,
         alpha: 1,
-        duration: 1000
+        duration: 1000,
       });
 
       // Handle autoplay
       const startMedia = async () => {
         try {
           // Start background music
-          this.backgroundMusic = this.sound.add('background_music', {
+          this.backgroundMusic = this.sound.add("background_music", {
             volume: 0.5,
-            loop: true
+            loop: true,
           });
-          
+
           // Try to start audio context
           const audioContext = (this.sound as any).context;
-          if (audioContext && audioContext.state === 'suspended') {
+          if (audioContext && audioContext.state === "suspended") {
             await audioContext.resume();
           }
-          
+
           this.backgroundMusic.play();
 
           // Start video playback
           if (this.videoTexture) {
             console.log("Starting video playback");
             this.videoTexture.play(false); // false means don't loop the video
-            
+
             // Show first message at 2 seconds
             this.time.delayedCall(2000, () => {
               this.showNextMessage();
@@ -200,10 +209,10 @@ export class IntroScene extends Scene {
                     this.tweens.add({
                       targets: this.overlayImage,
                       alpha: 0,
-                      duration: 1000
+                      duration: 1000,
                     });
                   });
-                }
+                },
               });
             });
 
@@ -216,16 +225,16 @@ export class IntroScene extends Scene {
                 if (this.startButton) {
                   this.startButton.destroy();
                 }
-              }
+              },
             });
           }
         } catch (error) {
-          console.warn('Error starting media:', error);
+          console.warn("Error starting media:", error);
         }
       };
 
       // Add click handler to start media
-      this.input.once('pointerdown', () => {
+      this.input.once("pointerdown", () => {
         startMedia();
       });
 
@@ -242,7 +251,7 @@ export class IntroScene extends Scene {
 
       console.log("IntroScene setup complete");
     } catch (error) {
-      console.error('Error in IntroScene create:', error);
+      console.error("Error in IntroScene create:", error);
       this.skipIntro();
     }
   }
@@ -270,13 +279,13 @@ export class IntroScene extends Scene {
     if (this.backgroundMusic) {
       this.backgroundMusic.stop();
     }
-    
+
     // Ensure clean transition
     this.cameras.main.fade(1000, 0, 0, 0);
     this.time.delayedCall(1000, () => {
-      this.scene.start("WorldScene", { 
+      this.scene.start("WorldScene", {
         socket: this.socket,
-        mapKey: this.mapKey
+        mapKey: this.mapKey,
       });
     });
   }
@@ -293,7 +302,7 @@ export class IntroScene extends Scene {
     if (this.videoTexture.video && this.videoTexture.video.readyState >= 2) {
       this.videoTexture.play(false);
       this.isVideoPlaying = true;
-      
+
       // Show skip text
       if (this.skipText) {
         this.skipText.setVisible(true);
@@ -320,10 +329,10 @@ export class IntroScene extends Scene {
     this.isVideoPlaying = false;
 
     // Start WorldScene with the background music
-    this.scene.start('WorldScene', {
-      socket: typeof window !== 'undefined' ? (window as any).__gameSocket : null,
-      mapKey: 'world',
-      music: this.backgroundMusic
+    this.scene.start("WorldScene", {
+      socket: this.socket,
+      mapKey: "world",
+      music: this.backgroundMusic,
     });
   }
-} 
+}

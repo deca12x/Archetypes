@@ -18,17 +18,25 @@ export default class BootScene extends Scene {
   }
 
   init(data: any) {
-    this.socket = data.socket;
+    // Get socket from window object if available
+    if (typeof window !== "undefined" && (window as any).__gameSocket) {
+      this.socket = (window as any).__gameSocket;
+    } else {
+      this.socket = data.socket || null;
+    }
     this.mapKey = data.mapKey || "world";
-    console.log("BootScene init called");
+    console.log(
+      "BootScene init called, socket:",
+      this.socket ? "available" : "not available"
+    );
   }
 
   launchGame(): void {
     this.sound.pauseOnBlur = false;
     // Start with IntroScene instead of WorldScene
-    this.scene.start("IntroScene", { 
+    this.scene.start("IntroScene", {
       socket: this.socket,
-      mapKey: this.mapKey
+      mapKey: this.mapKey,
     });
     // Start PauseScene
     this.scene.launch("PauseScene");
@@ -80,7 +88,10 @@ export default class BootScene extends Scene {
     console.log("Starting to load images...");
     try {
       // Load all tilemaps
-      this.load.tilemapTiledJSON("desert_gate", "/assets/maps/desert_gate.json");
+      this.load.tilemapTiledJSON(
+        "desert_gate",
+        "/assets/maps/desert_gate.json"
+      );
       this.load.tilemapTiledJSON("scene3", "/assets/maps/scene3.json");
       this.load.tilemapTiledJSON("scene4", "/assets/maps/scene4.json");
 
@@ -92,7 +103,7 @@ export default class BootScene extends Scene {
       // Load player sprite (wizard)
       this.load.spritesheet("player", "/assets/images/characters/wizard.png", {
         frameWidth: 48,
-        frameHeight: 48
+        frameHeight: 48,
       });
 
       // Load rogue sprite sheet
@@ -104,11 +115,14 @@ export default class BootScene extends Scene {
 
       // Load background music
       console.log("Loading background music...");
-      this.load.audio('background_music', '/assets/sounds/game_soundtrack.mp3');
-      
+      this.load.audio("background_music", "/assets/sounds/game_soundtrack.mp3");
+
       // Load tutorial overlay
-      this.load.image('tutorial_overlay', '/assets/images/tutorial_overlay.png');
-      
+      this.load.image(
+        "tutorial_overlay",
+        "/assets/images/tutorial_overlay.png"
+      );
+
       console.log("All assets loaded successfully");
     } catch (error) {
       console.error("Error loading assets:", error);
@@ -128,17 +142,20 @@ export default class BootScene extends Scene {
     try {
       // Create animations for the player
       this.anims.create({
-        key: 'player_idle',
-        frames: this.anims.generateFrameNumbers('player', { start: 0, end: 3 }),
+        key: "player_idle",
+        frames: this.anims.generateFrameNumbers("player", { start: 0, end: 3 }),
         frameRate: 8,
-        repeat: -1
+        repeat: -1,
       });
 
       this.anims.create({
-        key: 'player_walk',
-        frames: this.anims.generateFrameNumbers('player', { start: 4, end: 11 }),
+        key: "player_walk",
+        frames: this.anims.generateFrameNumbers("player", {
+          start: 4,
+          end: 11,
+        }),
         frameRate: 12,
-        repeat: -1
+        repeat: -1,
       });
 
       // Create rogue animations

@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import JoinRoom from "../components/providers/JoinRoom";
 import { FaGithub, FaTwitter } from "react-icons/fa";
+import { BackgroundAudio } from "@/components/BackgroundAudio";
 
 export default function Home() {
   const address = useAddress();
@@ -29,6 +30,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden">
+      <BackgroundAudio />
+
       {/* Video Background */}
       <div className="absolute inset-0 w-full h-full overflow-hidden">
         <video
@@ -55,15 +58,9 @@ export default function Home() {
           Archetypes of the Collective Unconscious
         </h1>
 
-        <div className="bg-black/50 p-8 rounded-lg backdrop-blur-sm">
+        {/* Join Room Component */}
+        <div className="flex flex-col items-center">
           <JoinRoom />
-
-          <button
-            onClick={disconnect}
-            className="mt-4 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-          >
-            Logout
-          </button>
         </div>
       </div>
 

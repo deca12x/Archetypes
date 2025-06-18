@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSocket } from "../../lib/hooks/useSocket";
+import { useSocket } from "@/lib/hooks/useSocket";
 
 // Define the response types
 interface CheckRoomResponse {
@@ -66,26 +66,26 @@ export default function JoinRoom() {
 
       <button
         onClick={handleCreateRoom}
-        className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+        className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white rounded-lg backdrop-blur-sm transition-all duration-300 text-xl font-semibold"
       >
-        New Game
+        Start New Game
       </button>
 
       <div className="flex flex-col space-y-2">
-        <label className="text-sm text-gray-200">Or Join Existing Game:</label>
+        <label className="text-sm text-white">Or Join Existing Game:</label>
         <div className="flex">
           <input
             type="text"
             value={roomCode}
             onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
             placeholder="Enter Room Code"
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-l text-black"
+            className="flex-1 px-3 py-2 border border-white/20 bg-black/30 rounded-l text-white backdrop-blur-sm"
             maxLength={6}
           />
           <button
             onClick={handleJoinRoom}
             disabled={!roomCode || !isConnected}
-            className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-r disabled:bg-gray-400"
+            className="bg-white/10 hover:bg-white/20 text-white font-semibold py-2 px-4 rounded-r backdrop-blur-sm transition-all duration-300 disabled:bg-gray-500/30 disabled:text-gray-400"
           >
             Join
           </button>

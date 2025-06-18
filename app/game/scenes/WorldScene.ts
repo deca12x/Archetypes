@@ -7,10 +7,10 @@ import {
   Tilesets,
   Maps,
 } from "../../../lib/game/constants/assets";
-import {
-  getStartPosition,
-  savePlayerPosition,
-} from "../../../lib/game/utils/map";
+// import {
+//   getStartPosition,
+//   savePlayerPosition,
+// } from "../../../lib/game/utils/map";
 import {
   isUIOpen,
   toggleMenu,
@@ -24,7 +24,7 @@ import {
 import { useUserDataStore } from "../../../lib/game/stores/userData";
 import { useChatStore } from "../../../lib/game/stores/chat";
 import { useUIStore } from "../../../lib/game/stores/ui";
-import { useSocket } from "@/lib/hooks/useSocket";
+// import { useSocket } from "@/lib/hooks/useSocket";
 import { MissionCard } from "../components/MissionCard";
 
 // Using string literal types instead of importing Direction from grid-engine
@@ -194,38 +194,44 @@ export default class WorldScene extends Scene {
           right: Phaser.Input.Keyboard.Key;
         };
       } else {
-        console.error('Input system not available in WorldScene');
+        console.error("Input system not available in WorldScene");
       }
 
       // Start background music
       if (!this.backgroundMusic) {
-        this.backgroundMusic = this.sound.add('background_music', {
+        this.backgroundMusic = this.sound.add("background_music", {
           volume: 0.5,
-          loop: true
+          loop: true,
         });
         this.backgroundMusic.play();
       }
 
       // Show the third message after a delay
       this.time.delayedCall(2000, () => {
-        const message = "There — just past the ridge.\nIf I don't trade now, I'm done.";
-        const messageText = this.add.text(this.cameras.main.width / 2, this.cameras.main.height * 0.8, message, {
-          fontSize: '32px',
-          fontFamily: 'Arial',
-          color: '#ffffff',
-          align: 'center',
-          stroke: '#000000',
-          strokeThickness: 4,
-          shadow: {
-            offsetX: 2,
-            offsetY: 2,
-            color: '#000',
-            blur: 2,
-            stroke: true,
-            fill: true
-          },
-          wordWrap: { width: this.cameras.main.width * 0.4 }
-        });
+        const message =
+          "There — just past the ridge.\nIf I don't trade now, I'm done.";
+        const messageText = this.add.text(
+          this.cameras.main.width / 2,
+          this.cameras.main.height * 0.8,
+          message,
+          {
+            fontSize: "32px",
+            fontFamily: "Arial",
+            color: "#ffffff",
+            align: "center",
+            stroke: "#000000",
+            strokeThickness: 4,
+            shadow: {
+              offsetX: 2,
+              offsetY: 2,
+              color: "#000",
+              blur: 2,
+              stroke: true,
+              fill: true,
+            },
+            wordWrap: { width: this.cameras.main.width * 0.4 },
+          }
+        );
         messageText.setOrigin(0.5, 0.5);
         messageText.setDepth(2000);
 
@@ -244,10 +250,10 @@ export default class WorldScene extends Scene {
                 duration: 1000,
                 onComplete: () => {
                   messageText.destroy();
-                }
+                },
               });
             });
-          }
+          },
         });
       });
 
@@ -257,36 +263,41 @@ export default class WorldScene extends Scene {
 
       // Add mission card
       const missionCard = this.add.container(20, 20);
-      
+
       // Background
       const cardBg = this.add.rectangle(0, 0, 300, 100, 0x000000, 0.7);
       cardBg.setStrokeStyle(2, 0xffffff);
-      
+
       // Mission title
-      const missionTitle = this.add.text(0, -30, 'MISSION', {
-        fontSize: '24px',
-        fontFamily: 'Arial',
-        color: '#ffffff',
-        stroke: '#000000',
-        strokeThickness: 4
+      const missionTitle = this.add.text(0, -30, "MISSION", {
+        fontSize: "24px",
+        fontFamily: "Arial",
+        color: "#ffffff",
+        stroke: "#000000",
+        strokeThickness: 4,
       });
       missionTitle.setOrigin(0, 0.5);
-      
+
       // Mission objective
-      const missionObjective = this.add.text(0, 10, 'Get to the marketplace\nbefore night falls', {
-        fontSize: '20px',
-        fontFamily: 'Arial',
-        color: '#ffffff',
-        stroke: '#000000',
-        strokeThickness: 3,
-        lineSpacing: 5
-      });
+      const missionObjective = this.add.text(
+        0,
+        10,
+        "Get to the marketplace\nbefore night falls",
+        {
+          fontSize: "20px",
+          fontFamily: "Arial",
+          color: "#ffffff",
+          stroke: "#000000",
+          strokeThickness: 3,
+          lineSpacing: 5,
+        }
+      );
       missionObjective.setOrigin(0, 0.5);
-      
+
       // Add all elements to the container
       missionCard.add([cardBg, missionTitle, missionObjective]);
       missionCard.setDepth(1000); // Ensure it's above other elements
-      
+
       // Add a subtle pulsing effect to the border
       this.tweens.add({
         targets: cardBg,
@@ -294,8 +305,12 @@ export default class WorldScene extends Scene {
         duration: 2000,
         yoyo: true,
         repeat: -1,
-        ease: 'Sine.easeInOut'
+        ease: "Sine.easeInOut",
       });
+
+      // After initializing the player in the create() method
+      this.initializeMultiplayer();
+      this.setupGridEngineListeners();
     } catch (error) {
       console.error("Error in create method:", error);
     }
@@ -314,18 +329,18 @@ export default class WorldScene extends Scene {
           this.joinRoom(roomCode, this.username);
         } else {
           // Create new room
-          this.createOrJoinRoom(this.username);
+          this.createRoom(this.username);
         }
       } else {
         // Default to creating a room
-        this.createOrJoinRoom(this.username);
+        this.createRoom(this.username);
       }
     }
   }
 
   setupGridEngineListeners() {
     if (!this.gridEngine) return;
-    
+
     // Listen for movement started
     this.gridEngine
       .movementStarted()
@@ -367,7 +382,9 @@ export default class WorldScene extends Scene {
     if (this.player) {
       this.handleMovement();
       // Check if player is in the transition area (top center of the map)
-      const transitionX = this.tilemap?.widthInPixels ? this.tilemap.widthInPixels / 2 : 0;
+      const transitionX = this.tilemap?.widthInPixels
+        ? this.tilemap.widthInPixels / 2
+        : 0;
       const transitionY = 50; // 50 pixels from top
       const distanceToTransition = Phaser.Math.Distance.Between(
         this.player.x,
@@ -375,12 +392,12 @@ export default class WorldScene extends Scene {
         transitionX,
         transitionY
       );
-      
+
       // Only transition if player is close to the transition point
       if (distanceToTransition < 30 && !this.isTransitioning) {
         this.isTransitioning = true;
         // Don't stop music, just start next scene
-        this.scene.start('Scene3');
+        this.scene.start("Scene3");
       }
     }
   }
@@ -443,15 +460,30 @@ export default class WorldScene extends Scene {
       console.log("Layer created");
 
       // Create the collision layer (update 'collision' to your actual layer name if needed)
-      const collisionLayer = this.tilemap.createLayer("collision", tileset, 0, 0);
+      const collisionLayer = this.tilemap.createLayer(
+        "collision",
+        tileset,
+        0,
+        0
+      );
       if (collisionLayer) {
         collisionLayer.setCollisionByExclusion([-1]); // All non-empty tiles are collidable
         this.collisionLayer = collisionLayer;
       }
 
       // Set world bounds to match map size
-      this.physics.world.setBounds(0, 0, this.tilemap.widthInPixels, this.tilemap.heightInPixels);
-      this.cameras.main.setBounds(0, 0, this.tilemap.widthInPixels, this.tilemap.heightInPixels);
+      this.physics.world.setBounds(
+        0,
+        0,
+        this.tilemap.widthInPixels,
+        this.tilemap.heightInPixels
+      );
+      this.cameras.main.setBounds(
+        0,
+        0,
+        this.tilemap.widthInPixels,
+        this.tilemap.heightInPixels
+      );
       this.cameras.main.setBackgroundColor("#e2a84b"); // Set to match map background
     } catch (error) {
       console.error("Error in initializeTilemap:", error);
@@ -462,7 +494,7 @@ export default class WorldScene extends Scene {
     console.log("Initializing player...");
     try {
       if (!this.tilemap) {
-        console.error('Tilemap not initialized');
+        console.error("Tilemap not initialized");
         return;
       }
 
@@ -477,7 +509,7 @@ export default class WorldScene extends Scene {
       console.log("Player sprite created:", this.player);
 
       if (!this.player) {
-        console.error('Failed to create player sprite');
+        console.error("Failed to create player sprite");
         return;
       }
 
@@ -513,34 +545,100 @@ export default class WorldScene extends Scene {
   setupSocketHandlers() {
     if (!this.socket) return;
 
-    this.socket.on("roomCreated", (data: { roomId: string }) => {
-      this.roomId = data.roomId;
-      if (this.roomCodeText) {
-        this.roomCodeText.setText(`Room Code: ${data.roomId}`);
+    this.socket.on(
+      "roomCreated",
+      ({
+        roomId,
+        playerId,
+        sprite,
+      }: {
+        roomId: string;
+        playerId: string;
+        sprite: string;
+      }) => {
+        this.roomId = roomId;
+        this.playerId = playerId;
+
+        // Set the player's sprite texture based on server assignment
+        this.player?.setTexture(sprite);
+
+        // Emit event for the React component to update the room code display
+        this.events.emit("roomCodeUpdated", roomId);
+
+        console.log(
+          `Joined room ${roomId} as player ${playerId} with sprite ${sprite}`
+        );
       }
+    );
+
+    this.socket.on(
+      "roomJoined",
+      ({
+        roomId,
+        playerId,
+        players,
+        sprite,
+      }: {
+        roomId: string;
+        playerId: string;
+        players: Record<string, Player>;
+        sprite: string;
+      }) => {
+        this.roomId = roomId;
+        this.playerId = playerId;
+
+        // Set the player's sprite texture based on server assignment
+        this.player?.setTexture(sprite);
+
+        // Emit event for the React component to update the room code display
+        this.events.emit("roomCodeUpdated", roomId);
+
+        console.log(
+          `Joined room ${roomId} as player ${playerId} with sprite ${sprite}`
+        );
+
+        // Create sprites for existing players
+        Object.entries(players).forEach(([id, playerData]) => {
+          if (id !== playerId) {
+            this.addRemotePlayer(id, playerData);
+          }
+        });
+      }
+    );
+
+    this.socket.on("roomError", ({ message }: { message: string }) => {
+      console.error(`Room error: ${message}`);
+      // Emit event for the React component to update with error
+      this.events.emit("roomCodeUpdated", `Error: ${message}`);
     });
 
-    this.socket.on("playerJoined", (data: { playerId: string, username: string }) => {
-      if (data.playerId !== this.playerId) {
-        this.addRemotePlayer(data.playerId, { username: data.username });
+    this.socket.on(
+      "playerJoined",
+      (data: { playerId: string; username: string }) => {
+        if (data.playerId !== this.playerId) {
+          this.addRemotePlayer(data.playerId, { username: data.username });
+        }
       }
-    });
+    );
 
     this.socket.on("playerLeft", (data: { playerId: string }) => {
       this.removeRemotePlayer(data.playerId);
     });
 
-    this.socket.on("chatMessage", (data: { playerId: string, message: string }) => {
-      if (data.playerId !== this.playerId) {
-        // Handle incoming chat message
-        console.log(`Chat from ${data.playerId}: ${data.message}`);
+    this.socket.on(
+      "chatMessage",
+      (data: { playerId: string; message: string }) => {
+        if (data.playerId !== this.playerId) {
+          // Handle incoming chat message
+          console.log(`Chat from ${data.playerId}: ${data.message}`);
+        }
       }
-    });
+    );
   }
 
-  createOrJoinRoom(username: string) {
+  createRoom(username: string) {
     if (!this.socket) return;
-    this.socket.emit("createOrJoinRoom", { username });
+    this.socket.emit("createRoom", { username });
   }
 
   joinRoom(roomId: string, username: string) {
@@ -550,11 +648,7 @@ export default class WorldScene extends Scene {
 
   addRemotePlayer(playerId: string, playerData: { username: string }) {
     if (!this.player) return;
-    const remotePlayer = this.add.sprite(
-      this.player.x,
-      this.player.y,
-      "rogue"
-    );
+    const remotePlayer = this.add.sprite(this.player.x, this.player.y, "rogue");
     remotePlayer.setScale(1);
     this.remotePlayers.set(playerId, remotePlayer);
   }
@@ -601,7 +695,8 @@ export default class WorldScene extends Scene {
   }
 
   checkAdjacentPlayers() {
-    if (!this.socket || !this.roomId || !this.playerId || !this.gridEngine) return;
+    if (!this.socket || !this.roomId || !this.playerId || !this.gridEngine)
+      return;
 
     const playerPosition = this.gridEngine.getPosition("player");
     if (!playerPosition) return;
@@ -653,7 +748,7 @@ export default class WorldScene extends Scene {
       // Create new chat group ID from sorted player IDs
       const playerIds = [
         this.playerId,
-        ...Array.from(this.adjacentPlayers)
+        ...Array.from(this.adjacentPlayers),
       ].sort();
       this.chatGroupId = playerIds.join("-");
     }

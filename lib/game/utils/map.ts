@@ -1,5 +1,5 @@
 // import { Tilemaps } from "phaser";
-// import WorldScene from "../../../baackup/game/scenes/WorldScene";
+// import WorldScene from "../../../backup/game/scenes/WorldScene";
 // import { useUserDataStore } from "../stores/userData";
 // import { Layers, Sprites } from "../constants/assets";
 // import { PLAYER_SIZE } from "../constants/game";

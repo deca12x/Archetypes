@@ -44,57 +44,59 @@ const GameComponent = () => {
       game.destroy(true);
     }
 
-    const newGame = new PhaserGame({
-      parent: gameContainerRef.current,
-      type: AUTO,
-      width: window.innerWidth,
-      height: window.innerHeight,
-      scale: {
-        mode: Scale.RESIZE,
-        autoCenter: Scale.CENTER_BOTH,
-      },
-      scene: [BootScene, WorldScene, PauseScene, IntroScene],
-      physics: {
-        default: "arcade",
-        arcade: {
-          debug: false,
+    try {
+      console.log("Creating new Phaser game...");
+      console.log("GridEngine plugin:", GridEngine);
+      console.log("GridEngine type:", typeof GridEngine);
+      console.log("GridEngine keys:", Object.keys(GridEngine || {}));
+
+      const newGame = new PhaserGame({
+        parent: gameContainerRef.current,
+        type: AUTO,
+        width: window.innerWidth,
+        height: window.innerHeight,
+        scale: {
+          mode: Scale.RESIZE,
+          autoCenter: Scale.CENTER_BOTH,
         },
-      },
-      plugins: {
-        scene: [
-          {
-            key: "gridEngine",
-            plugin: GridEngine,
-            mapping: "gridEngine",
-            start: true,
+        scene: [BootScene, WorldScene, PauseScene, IntroScene],
+        physics: {
+          default: "arcade",
+          arcade: {
+            debug: false,
           },
-        ],
-      },
-      pixelArt: true,
-    });
+        },
+        pixelArt: true,
+      });
 
-    setGame(newGame);
+      console.log("Phaser game created successfully");
 
-    // Get reference to the WorldScene once it's created
-    const checkForWorldScene = () => {
-      const worldSceneInstance = newGame.scene.getScene(
-        "WorldScene"
-      ) as WorldScene;
-      if (worldSceneInstance) {
-        setWorldScene(worldSceneInstance);
-      } else {
-        // Try again in a short while if not found
-        setTimeout(checkForWorldScene, 100);
-      }
-    };
+      setGame(newGame);
 
-    // Start checking once the game is loaded
-    newGame.events.once("ready", checkForWorldScene);
+      // Get reference to the WorldScene once it's created
+      const checkForWorldScene = () => {
+        const worldSceneInstance = newGame.scene.getScene(
+          "WorldScene"
+        ) as WorldScene;
+        if (worldSceneInstance) {
+          setWorldScene(worldSceneInstance);
+        } else {
+          // Try again in a short while if not found
+          setTimeout(checkForWorldScene, 100);
+        }
+      };
 
-    // Cleanup on unmount
-    return () => {
-      newGame.destroy(true);
-    };
+      // Start checking once the game is loaded
+      newGame.events.once("ready", checkForWorldScene);
+
+      // Cleanup on unmount
+      return () => {
+        newGame.destroy(true);
+      };
+    } catch (error) {
+      console.error("Error creating Phaser game:", error);
+      console.error("GridEngine import issue:", GridEngine);
+    }
   }, [gameContainerRef.current, socket]);
 
   // Handle chat message sending

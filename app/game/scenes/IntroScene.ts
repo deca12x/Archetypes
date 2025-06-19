@@ -79,15 +79,14 @@ export class IntroScene extends Scene {
         fontFamily: 'Arial'
       }).setOrigin(1, 0);
       this.skipText.setScrollFactor(0);
-      this.skipText.setVisible(false);
+      this.skipText.setVisible(true);
 
       // Set up space key for skipping
       if (this.input && this.input.keyboard) {
         const spaceKey = this.input.keyboard.addKey('SPACE');
         spaceKey.on('down', () => {
-          if (this.isVideoPlaying) {
-            this.skipIntro();
-          }
+          console.log('Space bar pressed - skipping intro');
+          this.skipIntro();
         });
       }
 
@@ -122,6 +121,12 @@ export class IntroScene extends Scene {
       this.videoTexture.on('videoready', () => {
         console.log('Video is ready to play');
         this.isVideoPlaying = true;
+      });
+
+      // Listen for video completion
+      this.videoTexture.on('complete', () => {
+        console.log('Video completed');
+        this.onVideoComplete();
       });
 
       // Add overlay image
@@ -184,6 +189,21 @@ export class IntroScene extends Scene {
             console.log("Starting video playback");
             this.videoTexture.play(false); // false means don't loop the video
             
+            // Add debugging for video events
+            this.videoTexture.on('play', () => {
+              console.log('Video started playing');
+            });
+            
+            this.videoTexture.on('ended', () => {
+              console.log('Video ended naturally');
+              this.onVideoComplete();
+            });
+            
+            this.videoTexture.on('error', (error: any) => {
+              console.error('Video error:', error);
+              this.skipIntro();
+            });
+            
             // Show first message at 2 seconds
             this.time.delayedCall(2000, () => {
               this.showNextMessage();
@@ -240,6 +260,7 @@ export class IntroScene extends Scene {
 
   private skipIntro() {
     console.log("Skipping intro");
+    console.log("Transitioning to WorldScene with socket:", this.socket ? "available" : "not available");
     this.scene.start("WorldScene", { socket: this.socket, mapKey: this.mapKey });
   }
 }

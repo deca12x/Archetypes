@@ -1,6 +1,7 @@
 import { Scene, GameObjects, Tilemaps, Physics } from "phaser";
 import { Socket } from "socket.io-client";
 import { Player } from "@/lib/socket/socketServer";
+import GridEngine from "grid-engine"; // Add direct import
 import {
   Sprites,
   Layers,
@@ -132,6 +133,7 @@ export default class WorldScene extends Scene {
   private mapKey: string = "world";
   private daylightOverlay: Phaser.GameObjects.Graphics | null = null;
   private gridEngine: GridEngineInterface | null = null;
+  private gridEngineReady: boolean = false; // Add flag to track initialization
   private roomId: string = "";
   private isTransitioning: boolean = false;
   private roomCodeText: Phaser.GameObjects.Text | null = null;
@@ -329,14 +331,19 @@ export default class WorldScene extends Scene {
   setupGridEngineListeners() {
     if (!this.gridEngine) return;
     
+    console.log("Setting up GridEngine listeners...");
+    
     // Listen for movement started
     this.gridEngine
       .movementStarted()
       .subscribe(({ charId, direction }: MovementEvent) => {
-        if (charId === "player") {
+        console.log("GridEngine: Movement started", { charId, direction });
+        if (charId === "player" && this.player) {
           const position = this.gridEngine?.getPosition("player");
           if (position) {
             this.updatePlayerMovement(position.x, position.y, direction);
+            this.updateSpritePosition(position);
+            this.playWalkingAnimation(direction);
           }
         }
       });
@@ -345,10 +352,13 @@ export default class WorldScene extends Scene {
     this.gridEngine
       .movementStopped()
       .subscribe(({ charId, direction }: MovementEvent) => {
-        if (charId === "player") {
+        console.log("GridEngine: Movement stopped", { charId, direction });
+        if (charId === "player" && this.player) {
           const position = this.gridEngine?.getPosition("player");
           if (position) {
             this.updatePlayerMovement(position.x, position.y, direction);
+            this.updateSpritePosition(position);
+            this.playIdleAnimation(direction);
           }
         }
       });
@@ -357,58 +367,266 @@ export default class WorldScene extends Scene {
     this.gridEngine
       .directionChanged()
       .subscribe(({ charId, direction }: MovementEvent) => {
-        if (charId === "player") {
+        console.log("GridEngine: Direction changed", { charId, direction });
+        if (charId === "player" && this.player) {
           const position = this.gridEngine?.getPosition("player");
           if (position) {
             this.updatePlayerMovement(position.x, position.y, direction);
+            this.updateSpritePosition(position);
+            this.playWalkingAnimation(direction);
           }
         }
       });
+
+    // Listen for position change finished
+    this.gridEngine
+      .positionChangeFinished()
+      .subscribe((data: any) => {
+        console.log("GridEngine: Position change finished", data);
+        if (data.charId === "player" && this.player) {
+          const position = this.gridEngine?.getPosition("player");
+          if (position) {
+            this.updateSpritePosition(position);
+            this.playIdleAnimation(data.direction || "down");
+          }
+        }
+      });
+      
+    console.log("GridEngine listeners set up successfully");
   }
 
-  update(): void {
-    if (this.player && this.gridEngine) {
-      this.handleMovement();
-      
-      // Check if player is in the transition area using GridEngine position
-      const playerPosition = this.gridEngine.getPosition("player");
-      const transitionX = this.tilemap?.widthInPixels ? Math.floor(this.tilemap.widthInPixels / 2 / 32) : 0;
-      const transitionY = 1; // 1 tile from top (32 pixels)
-      
-      // Only transition if player is at the transition point
-      if (playerPosition.x === transitionX && playerPosition.y === transitionY && !this.isTransitioning) {
-        this.isTransitioning = true;
-        // Don't stop music, just start next scene
-        this.scene.start('Scene3');
-      }
+  // Add method to update sprite position based on GridEngine tile position
+  private updateSpritePosition(position: { x: number; y: number }) {
+    if (!this.player) {
+      console.warn("updateSpritePosition: Player is undefined, skipping position update");
+      return;
+    }
+    
+    const tileSize = 32; // Correct tile size for this map
+    const pixelX = position.x * tileSize + tileSize / 2;
+    const pixelY = position.y * tileSize + tileSize / 2;
+    
+    console.log("Updating sprite position:", {
+      tilePosition: position,
+      pixelPosition: { x: pixelX, y: pixelY },
+      currentSpritePosition: { x: this.player.x, y: this.player.y }
+    });
+    
+    this.player.setPosition(pixelX, pixelY);
+    console.log("Sprite position after setPosition:", { x: this.player.x, y: this.player.y });
+  }
 
-      // Check for adjacent players regularly
-      this.checkAdjacentPlayers();
+  // Add method to play walking animation based on direction
+  private playWalkingAnimation(direction: Direction) {
+    if (!this.player) {
+      console.warn("playWalkingAnimation: Player is undefined, skipping animation");
+      return;
+    }
+    
+    if (!this.player.anims) {
+      console.warn("playWalkingAnimation: Player animations are undefined, skipping animation");
+      return;
+    }
+    
+    let animationKey = "rogue_walk_down"; // default
+    
+    switch (direction) {
+      case "up":
+        animationKey = "rogue_walk_up";
+        break;
+      case "down":
+        animationKey = "rogue_walk_down";
+        break;
+      case "left":
+        animationKey = "rogue_walk_left";
+        break;
+      case "right":
+        animationKey = "rogue_walk_right";
+        break;
+    }
+    
+    console.log("Playing walking animation:", animationKey);
+    try {
+      this.player.anims.play(animationKey, true);
+    } catch (error) {
+      console.error("Error playing walking animation:", error);
     }
   }
 
+  // Add method to play idle animation based on direction
+  private playIdleAnimation(direction: Direction) {
+    if (!this.player) {
+      console.warn("playIdleAnimation: Player is undefined, skipping animation");
+      return;
+    }
+    
+    if (!this.player.anims) {
+      console.warn("playIdleAnimation: Player animations are undefined, skipping animation");
+      return;
+    }
+    
+    let animationKey = "rogue_idle_down"; // default
+    
+    switch (direction) {
+      case "up":
+        animationKey = "rogue_idle_up";
+        break;
+      case "down":
+        animationKey = "rogue_idle_down";
+        break;
+      case "left":
+        animationKey = "rogue_idle_left";
+        break;
+      case "right":
+        animationKey = "rogue_idle_right";
+        break;
+    }
+    
+    console.log("Playing idle animation:", animationKey);
+    try {
+      this.player.anims.play(animationKey, true);
+    } catch (error) {
+      console.error("Error playing idle animation:", error);
+    }
+  }
+
+  update(): void {
+    if (!this.gridEngine || !this.player) return;
+
+    // Handle input for movement
+    this.handleMovement();
+    
+    // Check if player is in the transition area using GridEngine position
+    const playerPosition = this.gridEngine.getPosition("player");
+    const transitionX = this.tilemap?.widthInPixels ? Math.floor(this.tilemap.widthInPixels / 2 / 32) : 0;
+    const transitionY = 1; // 1 tile from top (32 pixels)
+    
+    // Only transition if player is at the transition point
+    if (playerPosition.x === transitionX && playerPosition.y === transitionY && !this.isTransitioning) {
+      this.isTransitioning = true;
+      console.log("Player reached transition point, starting Scene3");
+      // Don't stop music, just start next scene
+      this.scene.start('Scene3');
+    }
+    
+    // Check for adjacent players regularly
+    this.checkAdjacentPlayers();
+  }
+
+  // Add cleanup method to prevent memory leaks
+  shutdown(): void {
+    console.log("WorldScene shutdown called");
+    
+    // Clean up player reference
+    this.player = null;
+    
+    console.log("WorldScene cleanup completed");
+  }
+
   private handleMovement(): void {
-    if (!this.gridEngine || !this.cursors || !this.wasdKeys) return;
+    if (!this.gridEngine || !this.gridEngineReady || !this.cursors || !this.wasdKeys) {
+      console.log("Movement blocked - missing dependencies:", {
+        gridEngine: !!this.gridEngine,
+        gridEngineReady: this.gridEngineReady,
+        cursors: !!this.cursors,
+        wasdKeys: !!this.wasdKeys
+      });
+      return;
+    }
 
     // Only handle movement if the player is not currently moving
-    if (this.gridEngine.isMoving("player")) return;
+    if (this.gridEngine.isMoving("player")) {
+      // Add debugging to see what's happening with the movement state
+      const playerPosition = this.gridEngine.getPosition("player");
+      const spritePosition = this.player ? { x: this.player.x, y: this.player.y } : null;
+      console.log("Player is already moving, skipping input. State:", {
+        gridEnginePosition: playerPosition,
+        spritePosition: spritePosition,
+        isMoving: this.gridEngine.isMoving("player"),
+        spriteVisible: this.player?.visible,
+        spriteActive: this.player?.active
+      });
+      return;
+    }
 
     let direction: Direction | null = null;
 
     // Check for input and set direction (only cardinal directions)
     if (this.cursors.left.isDown || this.wasdKeys.left.isDown) {
       direction = "left";
+      console.log("Left key pressed");
     } else if (this.cursors.right.isDown || this.wasdKeys.right.isDown) {
       direction = "right";
+      console.log("Right key pressed");
     } else if (this.cursors.up.isDown || this.wasdKeys.up.isDown) {
       direction = "up";
+      console.log("Up key pressed");
     } else if (this.cursors.down.isDown || this.wasdKeys.down.isDown) {
       direction = "down";
+      console.log("Down key pressed");
     }
 
     // Move the player if a direction is pressed
     if (direction) {
+      console.log("Attempting to move player:", direction);
+      const beforePosition = this.gridEngine.getPosition("player");
+      const beforeSpritePosition = this.player ? { x: this.player.x, y: this.player.y } : null;
+      console.log("Position before move:", beforePosition, "Sprite position:", beforeSpritePosition);
+      
+      // Check if the target position would be valid
+      const targetX = beforePosition.x + (direction === "left" ? -1 : direction === "right" ? 1 : 0);
+      const targetY = beforePosition.y + (direction === "up" ? -1 : direction === "down" ? 1 : 0);
+      console.log("Target position:", { x: targetX, y: targetY });
+      
+      // Check if target position is within map bounds
+      if (targetX < 0 || targetX >= 60 || targetY < 0 || targetY >= 60) {
+        console.log("Movement blocked: Target position is outside map bounds");
+        return;
+      }
+      
+      // Check if target position has collision
+      if (this.collisionLayer) {
+        const targetTile = this.collisionLayer.getTileAt(targetX, targetY);
+        if (targetTile && targetTile.index !== -1) {
+          console.log("Movement blocked: Target position has collision tile", targetTile.index);
+          return;
+        }
+      }
+      
+      console.log("Target position is walkable, attempting move");
       this.gridEngine.move("player", direction);
+      console.log("Move command sent to GridEngine");
+      
+      // Check position after move
+      setTimeout(() => {
+        const afterPosition = this.gridEngine?.getPosition("player");
+        const afterSpritePosition = this.player ? { x: this.player.x, y: this.player.y } : null;
+        const isStillMoving = this.gridEngine?.isMoving("player");
+        console.log("Position after move:", afterPosition, "Sprite position:", afterSpritePosition, "Still moving:", isStillMoving);
+        
+        // If the sprite moved but GridEngine thinks it's still moving, try to force completion
+        if (isStillMoving && beforeSpritePosition && afterSpritePosition) {
+          const spriteMoved = beforeSpritePosition.x !== afterSpritePosition.x || beforeSpritePosition.y !== afterSpritePosition.y;
+          console.log("Sprite moved:", spriteMoved);
+          
+          if (spriteMoved) {
+            console.log("Sprite moved but GridEngine still thinks it's moving - this might be a bug");
+          } else {
+            // If sprite didn't move and GridEngine is stuck, try to force completion
+            console.log("GridEngine is stuck, trying to force movement completion...");
+            
+            // Try to manually set the target position
+            if (this.gridEngine && direction) {
+              const targetX = beforePosition.x + (direction === "left" ? -1 : direction === "right" ? 1 : 0);
+              const targetY = beforePosition.y + (direction === "up" ? -1 : direction === "down" ? 1 : 0);
+              
+              console.log("Forcing GridEngine to target position:", { x: targetX, y: targetY });
+              this.gridEngine.setPosition("player", { x: targetX, y: targetY });
+              this.updateSpritePosition({ x: targetX, y: targetY });
+            }
+          }
+        }
+      }, 100);
     }
   }
 
@@ -473,14 +691,15 @@ export default class WorldScene extends Scene {
       const startX = mapWidth / 2;
       const startY = mapHeight - 200; // 200 pixels from bottom
 
-      // Create player sprite (not physics-based for GridEngine)
-      this.player = this.add.sprite(startX, startY, "rogue");
-      console.log("Player sprite created:", this.player);
-
-      if (!this.player) {
-        console.error('Failed to create player sprite');
-        return;
-      }
+      // Create player sprite
+      this.player = this.add.sprite(0, 0, "rogue");
+      this.player.setOrigin(0.5, 0.5);
+      this.player.setScale(1);
+      
+      // Set initial idle animation
+      this.playIdleAnimation("down");
+      
+      console.log("Player sprite created at:", { x: this.player.x, y: this.player.y });
 
       // Set player properties for GridEngine
       this.player.setScale(1);
@@ -490,11 +709,6 @@ export default class WorldScene extends Scene {
       this.cameras.main.startFollow(this.player, true);
       this.cameras.main.setFollowOffset(0, 0);
       this.cameras.main.setZoom(1);
-
-      // Set initial animation
-      if (this.player.anims) {
-        this.player.anims.play("rogue_idle_down", true);
-      }
     } catch (error) {
       console.error("Error in initializePlayer:", error);
     }
@@ -693,26 +907,66 @@ export default class WorldScene extends Scene {
             },
             facingDirection: "down" as Direction,
             speed: 4,
+            walkingAnimationMapping: {
+              up: {
+                leftFoot: 0,
+                standing: 0,
+                rightFoot: 0,
+              },
+              down: {
+                leftFoot: 0,
+                standing: 0,
+                rightFoot: 0,
+              },
+              left: {
+                leftFoot: 0,
+                standing: 0,
+                rightFoot: 0,
+              },
+              right: {
+                leftFoot: 0,
+                standing: 0,
+                rightFoot: 0,
+              },
+            },
           },
         ],
         collisionTilePropertyName: "collides",
       };
 
-      // Initialize the grid engine
-      if (this.plugins && this.plugins.get("gridEngine")) {
-        this.gridEngine = this.plugins.get(
-          "gridEngine"
-        ) as unknown as GridEngineInterface;
-        this.gridEngine.create(this.tilemap, gridEngineConfig);
-        console.log("GridEngine initialized successfully");
+      // Skip the problematic plugin system and create GridEngine manually
+      console.log("Creating GridEngine manually...");
+      try {
+        const manualGridEngine = new GridEngine(this);
+        console.log("Manual GridEngine created:", manualGridEngine);
         
-        // Set up GridEngine listeners after initialization
-        this.setupGridEngineListeners();
-      } else {
-        console.error("GridEngine plugin not found");
+        if (this.tilemap) {
+          manualGridEngine.create(this.tilemap, gridEngineConfig);
+          console.log("Manual GridEngine initialized successfully");
+          
+          this.gridEngine = manualGridEngine as unknown as GridEngineInterface;
+          this.gridEngineReady = true;
+          
+          // Update sprite position to match GridEngine's initial position
+          const initialPosition = this.gridEngine.getPosition("player");
+          if (initialPosition) {
+            this.updateSpritePosition(initialPosition);
+          }
+          
+          this.setupGridEngineListeners();
+        } else {
+          console.error("Tilemap is null, cannot initialize manual GridEngine");
+        }
+      } catch (manualError) {
+        console.error("Failed to create manual GridEngine:", manualError);
+        console.error("Manual error details:", manualError instanceof Error ? manualError.message : manualError);
+        console.error("Manual error stack:", manualError instanceof Error ? manualError.stack : "No stack trace");
       }
+      
     } catch (error) {
       console.error("Error initializing GridEngine:", error);
+      console.error("Error details:", error instanceof Error ? error.message : error);
+      console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace");
     }
   }
 }

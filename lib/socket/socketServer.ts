@@ -271,11 +271,22 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
         player.y = movement.y;
         player.direction = movement.direction;
 
-        // Broadcast movement to other players in the room
-        socket.to(roomId).emit("playerMoved", {
-          playerId: socket.id,
-          movement,
+        // Find all players in the same scene
+        const playersInSameScene = Object.keys(room.players).filter((otherPlayerId) => {
+          if (otherPlayerId === socket.id) return false;
+          const otherPlayer = room.players[otherPlayerId];
+          return otherPlayer.currentScene === player.currentScene;
         });
+
+        if (playersInSameScene.length > 0) {
+          // Broadcast movement to other players in the same scene
+          socket.to(roomId).emit("playerMoved", {
+            playerId: socket.id,
+            movement,
+          });
+          
+          console.log(`Movement update from ${socket.id} in scene ${player.currentScene} sent to ${playersInSameScene.length} players in same scene`);
+        }
       }
     );
 
@@ -303,12 +314,26 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
 
         if (!playerRoom) return;
 
-        // Broadcast position to other players in the room
-        socket.to(playerRoom.roomId).emit("playerPosition", {
-          playerId,
-          position,
-          facingDirection,
+        const senderPlayer = playerRoom.players[playerId];
+        if (!senderPlayer) return;
+
+        // Find all players in the same scene
+        const playersInSameScene = Object.keys(playerRoom.players).filter((otherPlayerId) => {
+          if (otherPlayerId === playerId) return false;
+          const otherPlayer = playerRoom!.players[otherPlayerId];
+          return otherPlayer.currentScene === senderPlayer.currentScene;
         });
+
+        if (playersInSameScene.length > 0) {
+          // Send position update to all players in the same scene
+          socket.to(playerRoom.roomId).emit("playerPosition", {
+            playerId,
+            position,
+            facingDirection,
+          });
+          
+          console.log(`Position update from ${playerId} in scene ${senderPlayer.currentScene} sent to ${playersInSameScene.length} players in same scene`);
+        }
       }
     );
 

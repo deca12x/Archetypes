@@ -1292,7 +1292,15 @@ export default class WorldScene extends Scene {
   
   updateRemotePlayerAnimation(charId: string, direction: Direction) {
     const remotePlayer = this.remotePlayers.get(charId.replace("remote_", ""));
-    if (!remotePlayer) return;
+    if (!remotePlayer) {
+      console.warn("🌍 updateRemotePlayerAnimation: Remote player not found for charId:", charId);
+      return;
+    }
+    
+    if (!remotePlayer.anims) {
+      console.warn("🌍 updateRemotePlayerAnimation: Remote player has no animations:", charId);
+      return;
+    }
     
     const animMap = {
       up: "rogue_idle_up",
@@ -1303,7 +1311,11 @@ export default class WorldScene extends Scene {
     
     const animName = animMap[direction];
     if (animName) {
-      remotePlayer.anims.play(animName, true);
+      try {
+        remotePlayer.anims.play(animName, true);
+      } catch (error) {
+        console.error("🌍 Error playing animation:", error);
+      }
     }
   }
 

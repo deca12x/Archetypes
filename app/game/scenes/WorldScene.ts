@@ -149,9 +149,11 @@ export default class WorldScene extends Scene {
 
   init(data: any) {
     // Get socket and mapKey from data passed from BootScene
-    this.socket = data.socket;
+    this.socket = data.socket || (typeof window !== "undefined" ? (window as any).__gameSocket : null);
     this.mapKey = data.mapKey || "world";
     this.backgroundMusic = data.music; // Get the music instance from IntroScene
+
+    console.log("WorldScene init called with socket:", this.socket ? "available" : "not available");
 
     const daylightOverlay = this.add.graphics();
     daylightOverlay.setDepth(1000);
@@ -301,30 +303,63 @@ export default class WorldScene extends Scene {
         repeat: -1,
         ease: 'Sine.easeInOut'
       });
+
+      // Initialize multiplayer and room code display
+      this.initializeMultiplayer();
+      this.setupSocketHandlers();
+      
+      // Create room code display with appropriate initial message
+      const gameAction = typeof window !== "undefined" ? (window as any).__gameAction : null;
+      const roomCode = typeof window !== "undefined" ? (window as any).__roomCode : null;
+      
+      let initialMessage = 'Creating room...';
+      if (gameAction === 'join' && roomCode) {
+        initialMessage = `Joining room: ${roomCode}`;
+      }
+      
+      this.roomCodeText = this.add.text(this.cameras.main.width - 20, 20, initialMessage, {
+        fontSize: '18px',
+        fontFamily: 'Arial',
+        color: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 3,
+        backgroundColor: '#000000',
+        padding: { x: 10, y: 5 }
+      });
+      this.roomCodeText.setOrigin(1, 0);
+      this.roomCodeText.setDepth(1000);
     } catch (error) {
       console.error("Error in create method:", error);
     }
   }
 
   initializeMultiplayer() {
+    console.log("Initializing multiplayer...");
     if (this.socket) {
       this.username = "Player" + Math.floor(Math.random() * 1000);
+      console.log("Username set to:", this.username);
 
       if (typeof window !== "undefined") {
         const gameAction = (window as any).__gameAction;
         const roomCode = (window as any).__roomCode;
+        console.log("Window gameAction:", gameAction, "roomCode:", roomCode);
 
         if (gameAction === "join" && roomCode) {
           // Join existing room
+          console.log("Joining existing room:", roomCode);
           this.joinRoom(roomCode, this.username);
         } else {
           // Create new room
+          console.log("Creating new room");
           this.createOrJoinRoom(this.username);
         }
       } else {
         // Default to creating a room
+        console.log("No window object, creating new room");
         this.createOrJoinRoom(this.username);
       }
+    } else {
+      console.warn("Socket not available for multiplayer initialization");
     }
   }
 
@@ -691,8 +726,8 @@ export default class WorldScene extends Scene {
       const startX = mapWidth / 2;
       const startY = mapHeight - 200; // 200 pixels from bottom
 
-      // Create player sprite
-      this.player = this.add.sprite(0, 0, "rogue");
+      // Create player sprite at the correct starting position
+      this.player = this.add.sprite(startX, startY, "rogue");
       this.player.setOrigin(0.5, 0.5);
       this.player.setScale(1);
       
@@ -700,10 +735,6 @@ export default class WorldScene extends Scene {
       this.playIdleAnimation("down");
       
       console.log("Player sprite created at:", { x: this.player.x, y: this.player.y });
-
-      // Set player properties for GridEngine
-      this.player.setScale(1);
-      this.player.setOrigin(0.5, 0.5);
 
       // Set up camera to follow player
       this.cameras.main.startFollow(this.player, true);
@@ -717,22 +748,57 @@ export default class WorldScene extends Scene {
   // MULTIPLAYER METHODS
 
   setupSocketHandlers() {
-    if (!this.socket) return;
+    console.log("Setting up socket handlers...");
+    if (!this.socket) {
+      console.warn("Socket not available for setting up handlers");
+      return;
+    }
 
     this.socket.on("roomCreated", (data: { roomId: string }) => {
+      console.log("Room created:", data.roomId);
       this.roomId = data.roomId;
       if (this.roomCodeText) {
         this.roomCodeText.setText(`Room Code: ${data.roomId}`);
+        console.log("Room code text updated");
+      } else {
+        console.warn("Room code text element not found");
+      }
+    });
+
+    this.socket.on("roomJoined", (data: { roomId: string; playerId: string; players: any; sprite: string }) => {
+      console.log("Room joined:", data);
+      this.roomId = data.roomId;
+      this.playerId = data.playerId;
+      if (this.roomCodeText) {
+        this.roomCodeText.setText(`Room: ${data.roomId} (Joined)`);
+        console.log("Room joined text updated");
+      }
+      
+      // Add existing players to the scene
+      Object.values(data.players).forEach((player: any) => {
+        if (player.id !== data.playerId) {
+          this.addRemotePlayer(player.id, { username: player.username });
+        }
+      });
+    });
+
+    this.socket.on("roomError", (data: { message: string }) => {
+      console.error("Room error:", data.message);
+      if (this.roomCodeText) {
+        this.roomCodeText.setText(`Error: ${data.message}`);
+        this.roomCodeText.setColor('#ff0000');
       }
     });
 
     this.socket.on("playerJoined", (data: { playerId: string, username: string }) => {
+      console.log("Player joined:", data);
       if (data.playerId !== this.playerId) {
-        this.addRemotePlayer(data.playerId, { username: data.username });
+        this.handlePlayerJoined(data.playerId, { username: data.username });
       }
     });
 
     this.socket.on("playerLeft", (data: { playerId: string }) => {
+      console.log("Player left:", data);
       this.removeRemotePlayer(data.playerId);
     });
 
@@ -742,27 +808,66 @@ export default class WorldScene extends Scene {
         console.log(`Chat from ${data.playerId}: ${data.message}`);
       }
     });
+
+    this.socket.on("playerPosition", (data: { playerId: string, position: { x: number; y: number }, facingDirection: string }) => {
+      console.log("Received player position:", data);
+      if (data.playerId !== this.playerId) {
+        this.handlePlayerPosition(data.playerId, data.position, data.facingDirection);
+      }
+    });
   }
 
   createOrJoinRoom(username: string) {
-    if (!this.socket) return;
+    console.log("createOrJoinRoom called with username:", username);
+    if (!this.socket) {
+      console.warn("Socket not available for room creation");
+      return;
+    }
+    console.log("Emitting createOrJoinRoom event");
     this.socket.emit("createOrJoinRoom", { username });
   }
 
   joinRoom(roomId: string, username: string) {
-    if (!this.socket) return;
+    console.log("joinRoom called with roomId:", roomId, "username:", username);
+    if (!this.socket) {
+      console.warn("Socket not available for room joining");
+      return;
+    }
+    console.log("Emitting joinRoom event");
     this.socket.emit("joinRoom", { roomId, username });
   }
 
   addRemotePlayer(playerId: string, playerData: { username: string }) {
-    if (!this.player) return;
+    if (!this.player || !this.gridEngine) return;
+    
+    console.log("Adding remote player:", playerId, playerData);
+    
+    // Create remote player sprite
     const remotePlayer = this.add.sprite(
       this.player.x,
       this.player.y,
       "rogue"
     );
     remotePlayer.setScale(1);
+    remotePlayer.setOrigin(0.5, 0.5);
+    
+    // Set initial idle animation
+    remotePlayer.anims.play("rogue_idle_down", true);
+    
     this.remotePlayers.set(playerId, remotePlayer);
+    
+    // Add remote player to GridEngine with a unique character ID
+    const remoteCharId = `remote_${playerId}`;
+    if (!this.gridEngine.hasCharacter(remoteCharId)) {
+      console.log("Adding remote player to GridEngine:", remoteCharId);
+      this.gridEngine.addCharacter({
+        id: remoteCharId,
+        sprite: remotePlayer,
+        startPosition: { x: 5, y: 5 }, // Default position, will be updated
+        facingDirection: "down" as Direction,
+        speed: 4,
+      });
+    }
   }
 
   updateRemotePlayerPosition(playerId: string, movement: PlayerMovement) {
@@ -902,7 +1007,7 @@ export default class WorldScene extends Scene {
             id: "player",
             sprite: this.player,
             startPosition: {
-              x: Math.floor(this.player.x / 32), // Use correct tile size (32)
+              x: Math.floor(this.player.x / 32), // Convert pixel position to tile position
               y: Math.floor(this.player.y / 32),
             },
             facingDirection: "down" as Direction,
@@ -967,6 +1072,64 @@ export default class WorldScene extends Scene {
       console.error("Error initializing GridEngine:", error);
       console.error("Error details:", error instanceof Error ? error.message : error);
       console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace");
+    }
+  }
+
+  handlePlayerJoined(playerId: string, playerData: { username: string }) {
+    console.log("Player joined:", playerId, playerData);
+    
+    // Add remote player
+    this.addRemotePlayer(playerId, playerData);
+    
+    // Send our current position to the new player
+    if (this.player && this.gridEngine) {
+      const currentPos = this.gridEngine.getPosition("player");
+      console.log("Sending position to new player:", currentPos);
+      this.socket?.emit("playerPosition", {
+        playerId: this.socket.id,
+        position: currentPos,
+        facingDirection: this.gridEngine.getFacingDirection("player")
+      });
+    }
+  }
+
+  handlePlayerPosition(playerId: string, position: { x: number; y: number }, facingDirection: string) {
+    console.log("Received position from player:", playerId, position, facingDirection);
+    
+    const remoteCharId = `remote_${playerId}`;
+    const remotePlayer = this.remotePlayers.get(playerId);
+    
+    if (this.gridEngine && this.gridEngine.hasCharacter(remoteCharId) && remotePlayer) {
+      // Update position in GridEngine
+      this.gridEngine.setPosition(remoteCharId, position);
+      
+      // Calculate world position from tile position
+      const worldX = position.x * 32 + 16; // 32 is tile size, +16 for center
+      const worldY = position.y * 32 + 16;
+      remotePlayer.setPosition(worldX, worldY);
+      
+      // Update facing direction and animation
+      this.gridEngine.turnTowards(remoteCharId, facingDirection as Direction);
+      this.updateRemotePlayerAnimation(remoteCharId, facingDirection as Direction);
+      
+      console.log("Updated remote player position:", remoteCharId, position, { x: worldX, y: worldY });
+    }
+  }
+  
+  updateRemotePlayerAnimation(charId: string, direction: Direction) {
+    const remotePlayer = this.remotePlayers.get(charId.replace("remote_", ""));
+    if (!remotePlayer) return;
+    
+    const animMap = {
+      up: "rogue_idle_up",
+      down: "rogue_idle_down", 
+      left: "rogue_idle_left",
+      right: "rogue_idle_right"
+    };
+    
+    const animName = animMap[direction];
+    if (animName) {
+      remotePlayer.anims.play(animName, true);
     }
   }
 }

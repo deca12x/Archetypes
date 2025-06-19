@@ -18,9 +18,9 @@ export default class BootScene extends Scene {
   }
 
   init(data: any) {
-    this.socket = data.socket;
+    this.socket = data.socket || (typeof window !== "undefined" ? (window as any).__gameSocket : null);
     this.mapKey = data.mapKey || "world";
-    console.log("BootScene init called");
+    console.log("BootScene init called with socket:", this.socket ? "available" : "not available");
   }
 
   launchGame(): void {

@@ -121,6 +121,60 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
       );
     });
 
+    // Handle createOrJoinRoom event (client sends this)
+    socket.on("createOrJoinRoom", ({ username }: { username: string }) => {
+      console.log(`createOrJoinRoom called by ${socket.id} with username: ${username}`);
+      
+      // For now, always create a new room
+      let roomId = generateRoomCode();
+
+      // Ensure unique room ID
+      while (gameRooms[roomId]) {
+        roomId = generateRoomCode();
+      }
+
+      // Get all available sprites
+      const allSprites = getAllSprites();
+
+      // Randomly select a sprite for the room creator
+      const randomIndex = Math.floor(Math.random() * allSprites.length);
+      const selectedSprite = allSprites[randomIndex];
+
+      // Remove the selected sprite from available sprites
+      const remainingSprites = allSprites.filter(
+        (sprite) => sprite !== selectedSprite
+      );
+
+      // Create new room
+      gameRooms[roomId] = {
+        roomId,
+        players: {
+          [socket.id]: {
+            id: socket.id,
+            x: 5, // Default starting position
+            y: 5, // Default starting position
+            direction: "down",
+            username,
+            sprite: selectedSprite,
+          },
+        },
+        availableSprites: remainingSprites,
+      };
+
+      // Join socket to the room
+      socket.join(roomId);
+
+      // Send room info back to client
+      socket.emit("roomCreated", {
+        roomId,
+        playerId: socket.id,
+        sprite: selectedSprite,
+      });
+      console.log(
+        `Room created via createOrJoinRoom: ${roomId} by player ${socket.id} with sprite ${selectedSprite}`
+      );
+    });
+
     // Join an existing game room
     socket.on(
       "joinRoom",
@@ -170,6 +224,18 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
           player: room.players[socket.id],
         });
 
+        // Send current positions of existing players to the new player
+        Object.keys(room.players).forEach((existingPlayerId) => {
+          if (existingPlayerId !== socket.id) {
+            const existingPlayer = room.players[existingPlayerId];
+            socket.emit("playerPosition", {
+              playerId: existingPlayerId,
+              position: { x: existingPlayer.x, y: existingPlayer.y },
+              facingDirection: existingPlayer.direction,
+            });
+          }
+        });
+
         console.log(
           `Player ${socket.id} joined room ${roomId} with sprite ${selectedSprite}`
         );
@@ -199,6 +265,39 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
         socket.to(roomId).emit("playerMoved", {
           playerId: socket.id,
           movement,
+        });
+      }
+    );
+
+    // Handle player position synchronization
+    socket.on(
+      "playerPosition",
+      ({
+        playerId,
+        position,
+        facingDirection,
+      }: {
+        playerId: string;
+        position: { x: number; y: number };
+        facingDirection: string;
+      }) => {
+        // Find the room this player is in
+        let playerRoom: GameRoom | null = null;
+        for (const roomId in gameRooms) {
+          const room = gameRooms[roomId];
+          if (room.players[playerId]) {
+            playerRoom = room;
+            break;
+          }
+        }
+
+        if (!playerRoom) return;
+
+        // Broadcast position to other players in the room
+        socket.to(playerRoom.roomId).emit("playerPosition", {
+          playerId,
+          position,
+          facingDirection,
         });
       }
     );

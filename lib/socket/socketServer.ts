@@ -43,10 +43,16 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
       origin: "*",
       methods: ["GET", "POST"],
     },
+    transports: ["websocket", "polling"],
   });
 
+  // Track active connections
+  const activeConnections = new Set<string>();
+
   io.on("connection", (socket) => {
-    console.log(`User connected: ${socket.id}`);
+    console.log(`New socket connection: ${socket.id}`);
+    activeConnections.add(socket.id);
+    console.log(`Total active connections: ${activeConnections.size}`);
 
     // Check if a room exists and has available slots
     socket.on("checkRoom", ({ roomId }: { roomId: string }, callback) => {
@@ -387,9 +393,11 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
     );
 
     // Handle disconnection
-    socket.on("disconnect", () => {
-      console.log(`User disconnected: ${socket.id}`);
-
+    socket.on("disconnect", (reason) => {
+      console.log(`Socket ${socket.id} disconnected. Reason: ${reason}`);
+      activeConnections.delete(socket.id);
+      console.log(`Total active connections: ${activeConnections.size}`);
+      
       // Find and remove player from any room they were in
       Object.keys(gameRooms).forEach((roomId) => {
         const room = gameRooms[roomId];
@@ -413,6 +421,11 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
           }
         }
       });
+    });
+
+    // Handle connection errors
+    socket.on("error", (error) => {
+      console.error(`Socket ${socket.id} error:`, error);
     });
 
     // Handle chat messages

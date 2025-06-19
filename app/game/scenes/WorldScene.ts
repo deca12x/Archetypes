@@ -315,6 +315,17 @@ export default class WorldScene extends Scene {
           sceneName: "WorldScene",
           playerId: this.playerId
         });
+        
+        // Also send our current position to all players in the scene
+        if (this.player && this.gridEngine) {
+          const currentPos = this.gridEngine.getPosition("player");
+          console.log("🌍 Sending our position to all players in WorldScene:", currentPos);
+          this.socket.emit("playerPosition", {
+            playerId: this.socket.id,
+            position: currentPos,
+            facingDirection: this.gridEngine.getFacingDirection("player")
+          });
+        }
       }
       
       // Create room code display with appropriate initial message
@@ -1238,15 +1249,26 @@ export default class WorldScene extends Scene {
   }
 
   handlePlayerPosition(playerId: string, position: { x: number; y: number }, facingDirection: string) {
-    console.log("Received position from player:", playerId, position, facingDirection);
+    console.log("🌍 Received position from player:", playerId, position, facingDirection);
     
     const remoteCharId = `remote_${playerId}`;
     const remotePlayer = this.remotePlayers.get(playerId);
     
-    if (this.gridEngine && this.gridEngine.hasCharacter(remoteCharId) && remotePlayer) {
+    // If we don't have the remote player yet, create them
+    if (!remotePlayer) {
+      console.log("🌍 Remote player not found, creating them:", playerId);
+      this.handlePlayerJoined(playerId, { username: `Player${playerId.slice(-4)}` });
+      // Wait a frame for the player to be created, then update position
+      this.time.delayedCall(100, () => {
+        this.handlePlayerPosition(playerId, position, facingDirection);
+      });
+      return;
+    }
+    
+    if (this.gridEngine && this.gridEngine.hasCharacter(remoteCharId)) {
       // Validate position is within reasonable bounds
       if (position.x < 0 || position.y < 0 || position.x > 50 || position.y > 50) {
-        console.warn("Invalid position received:", position, "for player:", playerId);
+        console.warn("🌍 Invalid position received:", position, "for player:", playerId);
         return;
       }
       
@@ -1254,7 +1276,7 @@ export default class WorldScene extends Scene {
       this.gridEngine.setPosition(remoteCharId, position);
       
       // Calculate world position from tile position with precise centering
-      const worldX = Math.round(position.x * 32 + 16); // Round to avoid sub-pixel positioning
+      const worldX = Math.round(position.x * 32 + 16);
       const worldY = Math.round(position.y * 32 + 16);
       remotePlayer.setPosition(worldX, worldY);
       
@@ -1262,9 +1284,9 @@ export default class WorldScene extends Scene {
       this.gridEngine.turnTowards(remoteCharId, facingDirection as Direction);
       this.updateRemotePlayerAnimation(remoteCharId, facingDirection as Direction);
       
-      console.log("Updated remote player position:", remoteCharId, position, { x: worldX, y: worldY });
+      console.log("🌍 Updated remote player position:", remoteCharId, position, { x: worldX, y: worldY });
     } else {
-      console.warn("Cannot update position for player:", playerId, "GridEngine:", !!this.gridEngine, "hasCharacter:", this.gridEngine?.hasCharacter(remoteCharId), "remotePlayer:", !!remotePlayer);
+      console.warn("🌍 GridEngine or remote character not found for player:", playerId);
     }
   }
   

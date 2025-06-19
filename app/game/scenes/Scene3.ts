@@ -230,6 +230,17 @@ export default class Scene3 extends Scene {
         sceneName: "scene3",
         playerId: this.playerId
       });
+      
+      // Also send our current position to all players in the scene
+      if (this.player && this.gridEngine) {
+        const currentPos = this.gridEngine.getPosition("player");
+        console.log("🎬 Sending our position to all players in Scene3:", currentPos);
+        this.socket.emit("playerPosition", {
+          playerId: this.socket.id,
+          position: currentPos,
+          facingDirection: this.gridEngine.getFacingDirection("player")
+        });
+      }
     }
   }
 
@@ -840,15 +851,26 @@ export default class Scene3 extends Scene {
   }
 
   handlePlayerPosition(playerId: string, position: { x: number; y: number }, facingDirection: string) {
-    console.log("Scene3: Received position from player:", playerId, position, facingDirection);
+    console.log("🎬 Scene3: Received position from player:", playerId, position, facingDirection);
     
     const remoteCharId = `remote_${playerId}`;
     const remotePlayer = this.remotePlayers.get(playerId);
     
-    if (this.gridEngine && this.gridEngine.hasCharacter(remoteCharId) && remotePlayer) {
+    // If we don't have the remote player yet, create them
+    if (!remotePlayer) {
+      console.log("🎬 Scene3: Remote player not found, creating them:", playerId);
+      this.handlePlayerJoined(playerId, { username: `Player${playerId.slice(-4)}` });
+      // Wait a frame for the player to be created, then update position
+      this.time.delayedCall(100, () => {
+        this.handlePlayerPosition(playerId, position, facingDirection);
+      });
+      return;
+    }
+    
+    if (this.gridEngine && this.gridEngine.hasCharacter(remoteCharId)) {
       // Validate position is within reasonable bounds
       if (position.x < 0 || position.y < 0 || position.x > 50 || position.y > 50) {
-        console.warn("Invalid position received:", position, "for player:", playerId);
+        console.warn("🎬 Scene3: Invalid position received:", position, "for player:", playerId);
         return;
       }
       
@@ -864,7 +886,9 @@ export default class Scene3 extends Scene {
       this.gridEngine.turnTowards(remoteCharId, facingDirection as Direction);
       this.updateRemotePlayerAnimation(remoteCharId, facingDirection as Direction);
       
-      console.log("Updated remote player position:", remoteCharId, position, { x: worldX, y: worldY });
+      console.log("🎬 Scene3: Updated remote player position:", remoteCharId, position, { x: worldX, y: worldY });
+    } else {
+      console.warn("🎬 Scene3: GridEngine or remote character not found for player:", playerId);
     }
   }
   
@@ -900,7 +924,7 @@ export default class Scene3 extends Scene {
     // Add remote player with our current position as initial
     this.addRemotePlayer(playerId, playerData, initialPosition);
     
-    // Send our current position to the new player
+    // Send our current position to the new player immediately
     if (this.player && this.gridEngine) {
       const currentPos = this.gridEngine.getPosition("player");
       console.log("🎬 Sending position to new player:", currentPos);

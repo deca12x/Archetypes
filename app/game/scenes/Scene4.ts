@@ -132,6 +132,16 @@ export default class Scene4 extends Scene {
     // Initialize mission card
     this.missionCard = new MissionCard(this);
     this.missionCard.show();
+    
+    // Notify server that we've entered Scene4
+    if (this.socket && this.roomId) {
+      console.log("🎬 Scene4 Notifying server that we entered Scene4");
+      this.socket.emit("playerEnteredScene", {
+        roomId: this.roomId,
+        sceneName: "scene4",
+        playerId: this.playerId
+      });
+    }
   }
 
   update(): void {
@@ -647,6 +657,54 @@ export default class Scene4 extends Scene {
         this.handlePlayerPosition(data.playerId, data.position, data.facingDirection);
       }
     });
+
+    // Handle scene change events
+    this.socket.on("playerSceneChanged", (data: { playerId: string; previousScene: string; newScene: string; player: any }) => {
+      console.log("🎬 Scene4 Player scene changed:", data);
+      
+      if (data.playerId === this.playerId) {
+        // This is our own scene change, ignore
+        return;
+      }
+      
+      if (data.previousScene === "scene4" && data.newScene !== "scene4") {
+        // Player left Scene4, remove them
+        console.log("🎬 Scene4 Player left Scene4, removing:", data.playerId);
+        this.removeRemotePlayer(data.playerId);
+      } else if (data.previousScene !== "scene4" && data.newScene === "scene4") {
+        // Player entered Scene4, add them
+        console.log("🎬 Scene4 Player entered Scene4, adding:", data.playerId);
+        this.handlePlayerJoined(data.playerId, data.player);
+      }
+    });
+
+    // Handle when we enter a scene and need to see other players
+    this.socket.on("playersInScene", (data: { sceneName: string; players: any[] }) => {
+      console.log("🎬 Scene4 Players in scene:", data);
+      if (data.sceneName === "scene4") {
+        // Add all players who are already in Scene4
+        data.players.forEach((player) => {
+          this.handlePlayerJoined(player.id, player);
+        });
+      }
+    });
+
+    // Handle when another player enters our scene
+    this.socket.on("playerEnteredScene", (data: { sceneName: string; player: any }) => {
+      console.log("🎬 Scene4 Player entered scene:", data);
+      if (data.sceneName === "scene4") {
+        this.handlePlayerJoined(data.player.id, data.player);
+      }
+    });
+
+    // Remove automatic scene transition following - players should transition independently
+    // this.socket.on("sceneTransition", (data: { roomId: string, sceneName: string, playerId: string }) => {
+    //   console.log("Scene4: Received scene transition request:", data);
+    //   if (data.playerId !== this.playerId && data.roomId === this.roomId) {
+    //     console.log("Another player triggered scene transition, following...");
+    //     this.startSceneTransition(data.sceneName);
+    //   }
+    // });
   }
 
   handlePlayerPosition(playerId: string, position: { x: number; y: number }, facingDirection: string) {
@@ -692,6 +750,109 @@ export default class Scene4 extends Scene {
     const animName = animMap[direction];
     if (animName) {
       remotePlayer.anims.play(animName, true);
+    }
+  }
+
+  handlePlayerJoined(playerId: string, playerData: { username: string }) {
+    console.log("🎬 Scene4 Player joined:", playerId, playerData);
+    
+    // Get our current position to set as initial position for the new player
+    let initialPosition = { x: 5, y: 5 }; // Default
+    if (this.player && this.gridEngine) {
+      const currentPos = this.gridEngine.getPosition("player");
+      if (currentPos) {
+        initialPosition = currentPos;
+      }
+    }
+    
+    // Add remote player with our current position as initial
+    this.addRemotePlayer(playerId, playerData, initialPosition);
+    
+    // Send our current position to the new player
+    if (this.player && this.gridEngine) {
+      const currentPos = this.gridEngine.getPosition("player");
+      console.log("🎬 Scene4 Sending position to new player:", currentPos);
+      this.socket?.emit("playerPosition", {
+        playerId: this.socket.id,
+        position: currentPos,
+        facingDirection: this.gridEngine.getFacingDirection("player")
+      });
+    }
+  }
+
+  addRemotePlayer(playerId: string, playerData: { username: string }, initialPosition?: { x: number; y: number }) {
+    if (!this.player || !this.gridEngine) return;
+    
+    // Check if player already exists
+    if (this.remotePlayers.has(playerId)) {
+      console.log("🎬 Scene4 Player already exists, skipping creation:", playerId);
+      return;
+    }
+    
+    console.log("🎬 Scene4 Adding remote player:", playerId, playerData, "initial position:", initialPosition);
+    
+    // Use provided position or default to player's position
+    const startPos = initialPosition || { x: 5, y: 5 };
+    
+    // Validate position
+    if (startPos.x < 0 || startPos.y < 0 || startPos.x > 50 || startPos.y > 50) {
+      console.warn("🎬 Scene4 Invalid initial position:", startPos, "using default");
+      startPos.x = 5;
+      startPos.y = 5;
+    }
+    
+    const worldX = Math.round(startPos.x * 32 + 16);
+    const worldY = Math.round(startPos.y * 32 + 16);
+    
+    // Create remote player sprite
+    const remotePlayer = this.add.sprite(
+      worldX,
+      worldY,
+      "rogue"
+    );
+    remotePlayer.setScale(1);
+    remotePlayer.setOrigin(0.5, 0.5);
+    
+    // Set initial idle animation
+    remotePlayer.anims.play("rogue_idle_down", true);
+    
+    this.remotePlayers.set(playerId, remotePlayer);
+    
+    // Add remote player to GridEngine with a unique character ID
+    const remoteCharId = `remote_${playerId}`;
+    if (!this.gridEngine.hasCharacter(remoteCharId)) {
+      console.log("🎬 Scene4 Adding remote player to GridEngine:", remoteCharId, "at position:", startPos);
+      this.gridEngine.addCharacter({
+        id: remoteCharId,
+        sprite: remotePlayer,
+        startPosition: startPos,
+        facingDirection: "down" as Direction,
+        speed: 4,
+      });
+    } else {
+      console.log("🎬 Scene4 Remote player already exists in GridEngine:", remoteCharId);
+    }
+  }
+
+  removeRemotePlayer(playerId: string) {
+    console.log("🎬 Scene4 Removing remote player:", playerId);
+    
+    const remotePlayer = this.remotePlayers.get(playerId);
+    if (remotePlayer) {
+      // Remove from GridEngine first
+      const remoteCharId = `remote_${playerId}`;
+      if (this.gridEngine && this.gridEngine.hasCharacter(remoteCharId)) {
+        console.log("🎬 Scene4 Removing from GridEngine:", remoteCharId);
+        this.gridEngine.removeCharacter(remoteCharId);
+      }
+      
+      // Destroy the sprite
+      remotePlayer.destroy();
+      this.remotePlayers.delete(playerId);
+      
+      console.log("🎬 Scene4 Remote player removed successfully:", playerId);
+    } else {
+      console.warn("🎬 Scene4 Remote player not found for removal:", playerId);
     }
   }
 } 

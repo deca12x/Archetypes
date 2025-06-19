@@ -9,6 +9,7 @@ export interface Player {
   direction: string;
   username: string;
   sprite: string;
+  currentScene: string;
 }
 
 export interface GameRoom {
@@ -102,6 +103,7 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
             direction: "down",
             username,
             sprite: selectedSprite,
+            currentScene: "lobby",
           },
         },
         availableSprites: remainingSprites,
@@ -156,6 +158,7 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
             direction: "down",
             username,
             sprite: selectedSprite,
+            currentScene: "lobby",
           },
         },
         availableSprites: remainingSprites,
@@ -205,6 +208,7 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
           direction: "down",
           username,
           sprite: selectedSprite,
+          currentScene: "lobby",
         };
 
         // Join socket to the room
@@ -317,14 +321,68 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
         const room = gameRooms[roomId];
         if (!room || !room.players[playerId]) return;
 
-        // Broadcast scene transition to all players in the room
+        // Update player's current scene
+        const player = room.players[playerId];
+        const previousScene = player.currentScene;
+        player.currentScene = sceneName;
+
+        // Notify other players in the room about the scene change
+        socket.to(roomId).emit("playerSceneChanged", {
+          playerId,
+          previousScene,
+          newScene: sceneName,
+          player: {
+            id: player.id,
+            username: player.username,
+            sprite: player.sprite,
+            currentScene: player.currentScene
+          }
+        });
+
+        // Also emit the original sceneTransition event for backward compatibility
         socket.to(roomId).emit("sceneTransition", {
           roomId,
           sceneName,
           playerId,
         });
 
-        console.log(`Player ${playerId} triggered scene transition to ${sceneName} in room ${roomId}`);
+        console.log(`Player ${playerId} moved from ${previousScene} to ${sceneName} in room ${roomId}`);
+      }
+    );
+
+    // Handle player entering a scene - send them info about other players in that scene
+    socket.on(
+      "playerEnteredScene",
+      ({
+        roomId,
+        sceneName,
+        playerId,
+      }: {
+        roomId: string;
+        sceneName: string;
+        playerId: string;
+      }) => {
+        const room = gameRooms[roomId];
+        if (!room || !room.players[playerId]) return;
+
+        // Find all other players in the same scene
+        const playersInScene = Object.values(room.players).filter(
+          (player) => player.id !== playerId && player.currentScene === sceneName
+        );
+
+        // Send the list of players in this scene to the entering player
+        socket.emit("playersInScene", {
+          sceneName,
+          players: playersInScene
+        });
+
+        // Notify other players in the scene that a new player has entered
+        socket.to(roomId).emit("playerEnteredScene", {
+          sceneName,
+          player: room.players[playerId]
+        });
+
+        console.log(`Player ${playerId} entered scene ${sceneName}, found ${playersInScene.length} other players`);
       }
     );
 

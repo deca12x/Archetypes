@@ -307,6 +307,16 @@ export default class WorldScene extends Scene {
       this.initializeMultiplayer();
       this.setupSocketHandlers();
       
+      // Notify server that we've entered WorldScene
+      if (this.socket && this.roomId) {
+        console.log("🌍 Notifying server that we entered WorldScene");
+        this.socket.emit("playerEnteredScene", {
+          roomId: this.roomId,
+          sceneName: "WorldScene",
+          playerId: this.playerId
+        });
+      }
+      
       // Create room code display with appropriate initial message
       const gameAction = typeof window !== "undefined" ? localStorage.getItem("gameAction") : null;
       const roomCode = typeof window !== "undefined" ? localStorage.getItem("roomCode") : null;
@@ -888,6 +898,45 @@ export default class WorldScene extends Scene {
       //   console.log("Another player triggered scene transition, following...");
       //   this.startSceneTransition(data.sceneName);
       // }
+    });
+
+    // Handle scene change events
+    this.socket.on("playerSceneChanged", (data: { playerId: string; previousScene: string; newScene: string; player: any }) => {
+      console.log("🌍 Player scene changed:", data);
+      
+      if (data.playerId === this.playerId) {
+        // This is our own scene change, ignore
+        return;
+      }
+      
+      if (data.previousScene === "WorldScene" && data.newScene !== "WorldScene") {
+        // Player left WorldScene, remove them
+        console.log("🌍 Player left WorldScene, removing:", data.playerId);
+        this.removeRemotePlayer(data.playerId);
+      } else if (data.previousScene !== "WorldScene" && data.newScene === "WorldScene") {
+        // Player entered WorldScene, add them
+        console.log("🌍 Player entered WorldScene, adding:", data.playerId);
+        this.handlePlayerJoined(data.playerId, data.player);
+      }
+    });
+
+    // Handle when we enter a scene and need to see other players
+    this.socket.on("playersInScene", (data: { sceneName: string; players: any[] }) => {
+      console.log("🌍 Players in scene:", data);
+      if (data.sceneName === "WorldScene") {
+        // Add all players who are already in WorldScene
+        data.players.forEach((player) => {
+          this.handlePlayerJoined(player.id, player);
+        });
+      }
+    });
+
+    // Handle when another player enters our scene
+    this.socket.on("playerEnteredScene", (data: { sceneName: string; player: any }) => {
+      console.log("🌍 Player entered scene:", data);
+      if (data.sceneName === "WorldScene") {
+        this.handlePlayerJoined(data.player.id, data.player);
+      }
     });
   }
 

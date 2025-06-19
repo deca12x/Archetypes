@@ -115,7 +115,7 @@ export interface WorldReceivedData {
 
 export default class WorldScene extends Scene {
   private tilemap: Phaser.Tilemaps.Tilemap | null = null;
-  private player: Phaser.Physics.Arcade.Sprite | null = null;
+  private player: Phaser.GameObjects.Sprite | null = null;
   private cursors: Phaser.Types.Input.Keyboard.CursorKeys | null = null;
   private wasdKeys: {
     up: Phaser.Input.Keyboard.Key;
@@ -178,6 +178,9 @@ export default class WorldScene extends Scene {
       // Then initialize the player
       this.initializePlayer();
       console.log("Player initialized");
+
+      // Initialize GridEngine
+      this.initializeGridEngine();
 
       // Set up keyboard input
       if (this.input && this.input.keyboard) {
@@ -364,60 +367,48 @@ export default class WorldScene extends Scene {
   }
 
   update(): void {
-    if (this.player) {
+    if (this.player && this.gridEngine) {
       this.handleMovement();
-      // Check if player is in the transition area (top center of the map)
-      const transitionX = this.tilemap?.widthInPixels ? this.tilemap.widthInPixels / 2 : 0;
-      const transitionY = 50; // 50 pixels from top
-      const distanceToTransition = Phaser.Math.Distance.Between(
-        this.player.x,
-        this.player.y,
-        transitionX,
-        transitionY
-      );
       
-      // Only transition if player is close to the transition point
-      if (distanceToTransition < 30 && !this.isTransitioning) {
+      // Check if player is in the transition area using GridEngine position
+      const playerPosition = this.gridEngine.getPosition("player");
+      const transitionX = this.tilemap?.widthInPixels ? Math.floor(this.tilemap.widthInPixels / 2 / 32) : 0;
+      const transitionY = 1; // 1 tile from top (32 pixels)
+      
+      // Only transition if player is at the transition point
+      if (playerPosition.x === transitionX && playerPosition.y === transitionY && !this.isTransitioning) {
         this.isTransitioning = true;
         // Don't stop music, just start next scene
         this.scene.start('Scene3');
       }
+
+      // Check for adjacent players regularly
+      this.checkAdjacentPlayers();
     }
   }
 
   private handleMovement(): void {
-    if (!this.player || !this.cursors || !this.wasdKeys) return;
-    this.player.setVelocity(0);
-    let velocityX = 0;
-    let velocityY = 0;
+    if (!this.gridEngine || !this.cursors || !this.wasdKeys) return;
+
+    // Only handle movement if the player is not currently moving
+    if (this.gridEngine.isMoving("player")) return;
+
+    let direction: Direction | null = null;
+
+    // Check for input and set direction (only cardinal directions)
     if (this.cursors.left.isDown || this.wasdKeys.left.isDown) {
-      velocityX = -this.moveSpeed;
+      direction = "left";
     } else if (this.cursors.right.isDown || this.wasdKeys.right.isDown) {
-      velocityX = this.moveSpeed;
-    }
-    if (this.cursors.up.isDown || this.wasdKeys.up.isDown) {
-      velocityY = -this.moveSpeed;
+      direction = "right";
+    } else if (this.cursors.up.isDown || this.wasdKeys.up.isDown) {
+      direction = "up";
     } else if (this.cursors.down.isDown || this.wasdKeys.down.isDown) {
-      velocityY = this.moveSpeed;
+      direction = "down";
     }
-    // Normalize diagonal movement
-    if (velocityX !== 0 && velocityY !== 0) {
-      const norm = Math.sqrt(2) / 2;
-      velocityX *= norm;
-      velocityY *= norm;
-    }
-    this.player.setVelocity(velocityX, velocityY);
-    // Play appropriate animation
-    if (velocityX < 0) {
-      this.player.anims.play("rogue_walk_left", true);
-    } else if (velocityX > 0) {
-      this.player.anims.play("rogue_walk_right", true);
-    } else if (velocityY < 0) {
-      this.player.anims.play("rogue_walk_up", true);
-    } else if (velocityY > 0) {
-      this.player.anims.play("rogue_walk_down", true);
-    } else {
-      this.player.anims.play("rogue_idle_down", true);
+
+    // Move the player if a direction is pressed
+    if (direction) {
+      this.gridEngine.move("player", direction);
     }
   }
 
@@ -445,8 +436,18 @@ export default class WorldScene extends Scene {
       // Create the collision layer (update 'collision' to your actual layer name if needed)
       const collisionLayer = this.tilemap.createLayer("collision", tileset, 0, 0);
       if (collisionLayer) {
-        collisionLayer.setCollisionByExclusion([-1]); // All non-empty tiles are collidable
+        // Set collision on all non-empty tiles
+        collisionLayer.setCollisionByExclusion([-1]);
+        
+        // Add "collides" property to all collision tiles for GridEngine
+        collisionLayer.forEachTile((tile) => {
+          if (tile.index !== -1) {
+            tile.properties = { collides: true };
+          }
+        });
+        
         this.collisionLayer = collisionLayer;
+        console.log("Collision layer configured for GridEngine");
       }
 
       // Set world bounds to match map size
@@ -472,8 +473,8 @@ export default class WorldScene extends Scene {
       const startX = mapWidth / 2;
       const startY = mapHeight - 200; // 200 pixels from bottom
 
-      // Create player sprite
-      this.player = this.physics.add.sprite(startX, startY, "rogue");
+      // Create player sprite (not physics-based for GridEngine)
+      this.player = this.add.sprite(startX, startY, "rogue");
       console.log("Player sprite created:", this.player);
 
       if (!this.player) {
@@ -481,18 +482,9 @@ export default class WorldScene extends Scene {
         return;
       }
 
-      // Set player properties
+      // Set player properties for GridEngine
       this.player.setScale(1);
-      this.player.setCollideWorldBounds(true);
-      this.player.setBounce(0.1);
-      this.player.setDamping(true);
-      this.player.setDrag(0.95);
-      this.player.setMaxVelocity(200);
-
-      // Add collider with collision layer
-      if (this.collisionLayer) {
-        this.physics.add.collider(this.player, this.collisionLayer);
-      }
+      this.player.setOrigin(0.5, 0.5);
 
       // Set up camera to follow player
       this.cameras.main.startFollow(this.player, true);
@@ -677,6 +669,50 @@ export default class WorldScene extends Scene {
       console.log("Message is self-only (no proximity chat active)");
       // If proximity chat is not active, we could automatically route to Nebula here
       // But that's handled in the ChatWindow component instead
+    }
+  }
+
+  private initializeGridEngine(): void {
+    if (!this.tilemap || !this.player) {
+      console.error("Cannot initialize GridEngine: tilemap or player is null");
+      return;
+    }
+
+    try {
+      console.log("Initializing GridEngine...");
+
+      // Create the grid engine configuration
+      const gridEngineConfig: GridEngineConfig = {
+        characters: [
+          {
+            id: "player",
+            sprite: this.player,
+            startPosition: {
+              x: Math.floor(this.player.x / 32), // Use correct tile size (32)
+              y: Math.floor(this.player.y / 32),
+            },
+            facingDirection: "down" as Direction,
+            speed: 4,
+          },
+        ],
+        collisionTilePropertyName: "collides",
+      };
+
+      // Initialize the grid engine
+      if (this.plugins && this.plugins.get("gridEngine")) {
+        this.gridEngine = this.plugins.get(
+          "gridEngine"
+        ) as unknown as GridEngineInterface;
+        this.gridEngine.create(this.tilemap, gridEngineConfig);
+        console.log("GridEngine initialized successfully");
+        
+        // Set up GridEngine listeners after initialization
+        this.setupGridEngineListeners();
+      } else {
+        console.error("GridEngine plugin not found");
+      }
+    } catch (error) {
+      console.error("Error initializing GridEngine:", error);
     }
   }
 }

@@ -66,6 +66,7 @@ const GameComponent = () => {
             key: "gridEngine",
             plugin: GridEngine,
             mapping: "gridEngine",
+            start: true,
           },
         ],
       },

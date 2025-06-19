@@ -309,8 +309,8 @@ export default class WorldScene extends Scene {
       this.setupSocketHandlers();
       
       // Create room code display with appropriate initial message
-      const gameAction = typeof window !== "undefined" ? (window as any).__gameAction : null;
-      const roomCode = typeof window !== "undefined" ? (window as any).__roomCode : null;
+      const gameAction = typeof window !== "undefined" ? localStorage.getItem("gameAction") : null;
+      const roomCode = typeof window !== "undefined" ? localStorage.getItem("roomCode") : null;
       
       let initialMessage = 'Creating room...';
       if (gameAction === 'join' && roomCode) {
@@ -340,14 +340,19 @@ export default class WorldScene extends Scene {
       console.log("Username set to:", this.username);
 
       if (typeof window !== "undefined") {
-        const gameAction = (window as any).__gameAction;
-        const roomCode = (window as any).__roomCode;
-        console.log("Window gameAction:", gameAction, "roomCode:", roomCode);
+        // Read from localStorage instead of window object
+        const gameAction = localStorage.getItem("gameAction");
+        const roomCode = localStorage.getItem("roomCode");
+        console.log("localStorage gameAction:", gameAction, "roomCode:", roomCode);
 
         if (gameAction === "join" && roomCode) {
           // Join existing room
           console.log("Joining existing room:", roomCode);
           this.joinRoom(roomCode, this.username);
+          
+          // Clear localStorage after reading
+          localStorage.removeItem("gameAction");
+          localStorage.removeItem("roomCode");
         } else {
           // Create new room
           console.log("Creating new room");

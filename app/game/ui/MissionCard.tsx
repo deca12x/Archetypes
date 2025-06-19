@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 export const MissionCard: React.FC = () => {
   return (
@@ -9,10 +9,11 @@ export const MissionCard: React.FC = () => {
           <h2 className="text-xl font-bold">MISSION</h2>
         </div>
         <p className="text-lg">
-          Get to the marketplace<br />
+          Get to the marketplace
+          <br />
           before night falls
         </p>
       </div>
     </div>
   );
-}; 
+};

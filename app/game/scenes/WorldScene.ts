@@ -27,9 +27,23 @@ import { useChatStore } from "../../../lib/game/stores/chat";
 import { useUIStore } from "../../../lib/game/stores/ui";
 import { useSocket } from "../../../lib/hooks/useSocket";
 import { MissionCard } from "../components/MissionCard";
+import { Direction } from "grid-engine";
 
-// Using string literal types instead of importing Direction from grid-engine
-type Direction = "up" | "down" | "left" | "right";
+// Add a helper function to convert string literals to Direction type
+function toDirection(dir: string): Direction {
+  switch (dir) {
+    case "up":
+      return Direction.UP;
+    case "down":
+      return Direction.DOWN;
+    case "left":
+      return Direction.LEFT;
+    case "right":
+      return Direction.RIGHT;
+    default:
+      return Direction.DOWN; // Default direction
+  }
+}
 
 // Define GridEngineConfig interface since it's not exported from grid-engine
 interface GridEngineConfig {
@@ -496,7 +510,7 @@ export default class WorldScene extends Scene {
         const position = this.gridEngine?.getPosition("player");
         if (position) {
           this.updateSpritePosition(position);
-          this.playIdleAnimation(data.direction || "down");
+          this.playIdleAnimation(data.direction || Direction.DOWN);
         }
       }
     });
@@ -549,16 +563,16 @@ export default class WorldScene extends Scene {
     let animationKey = "rogue_walk_down"; // default
 
     switch (direction) {
-      case "up":
+      case Direction.UP:
         animationKey = "rogue_walk_up";
         break;
-      case "down":
+      case Direction.DOWN:
         animationKey = "rogue_walk_down";
         break;
-      case "left":
+      case Direction.LEFT:
         animationKey = "rogue_walk_left";
         break;
-      case "right":
+      case Direction.RIGHT:
         animationKey = "rogue_walk_right";
         break;
     }
@@ -590,16 +604,16 @@ export default class WorldScene extends Scene {
     let animationKey = "rogue_idle_down"; // default
 
     switch (direction) {
-      case "up":
+      case Direction.UP:
         animationKey = "rogue_idle_up";
         break;
-      case "down":
+      case Direction.DOWN:
         animationKey = "rogue_idle_down";
         break;
-      case "left":
+      case Direction.LEFT:
         animationKey = "rogue_idle_left";
         break;
-      case "right":
+      case Direction.RIGHT:
         animationKey = "rogue_idle_right";
         break;
     }
@@ -687,16 +701,16 @@ export default class WorldScene extends Scene {
 
     // Check for input and set direction (only cardinal directions)
     if (this.cursors.left.isDown || this.wasdKeys.left.isDown) {
-      direction = "left";
+      direction = Direction.LEFT;
       console.log("Left key pressed");
     } else if (this.cursors.right.isDown || this.wasdKeys.right.isDown) {
-      direction = "right";
+      direction = Direction.RIGHT;
       console.log("Right key pressed");
     } else if (this.cursors.up.isDown || this.wasdKeys.up.isDown) {
-      direction = "up";
+      direction = Direction.UP;
       console.log("Up key pressed");
     } else if (this.cursors.down.isDown || this.wasdKeys.down.isDown) {
-      direction = "down";
+      direction = Direction.DOWN;
       console.log("Down key pressed");
     }
 
@@ -717,10 +731,18 @@ export default class WorldScene extends Scene {
       // Check if the target position would be valid
       const targetX =
         beforePosition.x +
-        (direction === "left" ? -1 : direction === "right" ? 1 : 0);
+        (direction === Direction.LEFT
+          ? -1
+          : direction === Direction.RIGHT
+          ? 1
+          : 0);
       const targetY =
         beforePosition.y +
-        (direction === "up" ? -1 : direction === "down" ? 1 : 0);
+        (direction === Direction.UP
+          ? -1
+          : direction === Direction.DOWN
+          ? 1
+          : 0);
       console.log("Target position:", { x: targetX, y: targetY });
 
       // Check if target position is within map bounds
@@ -782,10 +804,18 @@ export default class WorldScene extends Scene {
             if (this.gridEngine && direction) {
               const targetX =
                 beforePosition.x +
-                (direction === "left" ? -1 : direction === "right" ? 1 : 0);
+                (direction === Direction.LEFT
+                  ? -1
+                  : direction === Direction.RIGHT
+                  ? 1
+                  : 0);
               const targetY =
                 beforePosition.y +
-                (direction === "up" ? -1 : direction === "down" ? 1 : 0);
+                (direction === Direction.UP
+                  ? -1
+                  : direction === Direction.DOWN
+                  ? 1
+                  : 0);
 
               console.log("Forcing GridEngine to target position:", {
                 x: targetX,
@@ -882,7 +912,7 @@ export default class WorldScene extends Scene {
       this.player.setScale(1);
 
       // Set initial idle animation
-      this.playIdleAnimation("down");
+      this.playIdleAnimation(Direction.DOWN);
 
       console.log("Player sprite created at:", {
         x: this.player.x,
@@ -1514,10 +1544,10 @@ export default class WorldScene extends Scene {
       remotePlayer.setPosition(worldX, worldY);
 
       // Update facing direction and animation
-      this.gridEngine.turnTowards(remoteCharId, facingDirection as Direction);
+      this.gridEngine.turnTowards(remoteCharId, toDirection(facingDirection));
       this.updateRemotePlayerAnimation(
         remoteCharId,
-        facingDirection as Direction
+        toDirection(facingDirection)
       );
 
       console.log(

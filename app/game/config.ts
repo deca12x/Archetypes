@@ -14,13 +14,6 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
   width: 800,
   height: 600,
   pixelArt: true,
-  physics: {
-    default: "arcade",
-    arcade: {
-      gravity: { x: 0, y: 0 },
-      debug: false,
-    },
-  },
   scene: [BootScene, IntroScene, WorldScene, Scene3, Scene4, TutorialScene, TourScene, PauseScene],
   scale: {
     mode: Phaser.Scale.FIT,

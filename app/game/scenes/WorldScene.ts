@@ -1,4 +1,4 @@
-import { Scene, GameObjects, Tilemaps, Physics } from "phaser";
+import { Scene, GameObjects, Tilemaps } from "phaser";
 import { Socket } from "socket.io-client";
 import { Player } from "@/lib/socket/socketServer";
 import GridEngine from "grid-engine"; // Add direct import
@@ -125,7 +125,6 @@ export default class WorldScene extends Scene {
     right: Phaser.Input.Keyboard.Key;
   } | null = null;
   private collisionObjects: Phaser.GameObjects.Rectangle[] | null = null;
-  private moveSpeed: number = 350; // increased speed
   private collisionLayer: Phaser.Tilemaps.TilemapLayer | null = null;
   public username: string = "Player";
   public playerId: string = "";
@@ -954,29 +953,6 @@ export default class WorldScene extends Scene {
       });
     } else {
       console.log("Remote player already exists in GridEngine:", remoteCharId);
-    }
-  }
-
-  updateRemotePlayerPosition(playerId: string, movement: PlayerMovement) {
-    const remotePlayer = this.remotePlayers.get(playerId);
-    if (remotePlayer) {
-      remotePlayer.x = movement.x;
-      remotePlayer.y = movement.y;
-      // Update animation based on direction
-      switch (movement.direction) {
-        case "left":
-          remotePlayer.anims.play("rogue_walk_left", true);
-          break;
-        case "right":
-          remotePlayer.anims.play("rogue_walk_right", true);
-          break;
-        case "up":
-          remotePlayer.anims.play("rogue_walk_up", true);
-          break;
-        case "down":
-          remotePlayer.anims.play("rogue_walk_down", true);
-          break;
-      }
     }
   }
 

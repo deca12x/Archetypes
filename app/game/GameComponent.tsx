@@ -60,12 +60,6 @@ const GameComponent = () => {
           autoCenter: Scale.CENTER_BOTH,
         },
         scene: [BootScene, WorldScene, PauseScene, IntroScene],
-        physics: {
-          default: "arcade",
-          arcade: {
-            debug: false,
-          },
-        },
         pixelArt: true,
       });
 

@@ -302,6 +302,32 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
       }
     );
 
+    // Handle scene transitions
+    socket.on(
+      "sceneTransition",
+      ({
+        roomId,
+        sceneName,
+        playerId,
+      }: {
+        roomId: string;
+        sceneName: string;
+        playerId: string;
+      }) => {
+        const room = gameRooms[roomId];
+        if (!room || !room.players[playerId]) return;
+
+        // Broadcast scene transition to all players in the room
+        socket.to(roomId).emit("sceneTransition", {
+          roomId,
+          sceneName,
+          playerId,
+        });
+
+        console.log(`Player ${playerId} triggered scene transition to ${sceneName} in room ${roomId}`);
+      }
+    );
+
     // Handle disconnection
     socket.on("disconnect", () => {
       console.log(`User disconnected: ${socket.id}`);

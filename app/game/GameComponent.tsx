@@ -6,6 +6,8 @@ import { useState, useEffect, useRef } from "react";
 import GridEngine from "grid-engine";
 import BootScene from "./scenes/BootScene";
 import WorldScene from "./scenes/WorldScene";
+import Scene3 from "./scenes/Scene3";
+import Scene4 from "./scenes/Scene4";
 import { useUIStore } from "../../lib/game/stores/ui";
 import { useChatStore } from "../../lib/game/stores/chat";
 import Loading from "./ui/Loading";
@@ -59,7 +61,7 @@ const GameComponent = () => {
           mode: Scale.RESIZE,
           autoCenter: Scale.CENTER_BOTH,
         },
-        scene: [BootScene, WorldScene, PauseScene, IntroScene],
+        scene: [BootScene, WorldScene, Scene3, Scene4, PauseScene, IntroScene],
         pixelArt: true,
       });
 

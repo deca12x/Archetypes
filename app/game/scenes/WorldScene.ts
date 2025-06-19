@@ -548,25 +548,25 @@ export default class WorldScene extends Scene {
   }
 
   update(): void {
-    if (!this.gridEngine || !this.player) return;
-
-    // Handle input for movement
-    this.handleMovement();
-    
-    // Check if player is in the transition area using GridEngine position
-    const playerPosition = this.gridEngine.getPosition("player");
-    const transitionX = this.tilemap?.widthInPixels ? Math.floor(this.tilemap.widthInPixels / 2 / 32) : 0;
-    const transitionY = 1; // 1 tile from top (32 pixels)
-    
-    // Only transition if player is at the transition point
-    if (playerPosition.x === transitionX && playerPosition.y === transitionY && !this.isTransitioning) {
-      this.isTransitioning = true;
-      console.log("Player reached transition point, starting Scene3");
-      // Don't stop music, just start next scene
-      this.scene.start('Scene3');
+    if (!this.gridEngineReady) {
+      return;
     }
-    
-    // Check for adjacent players regularly
+
+    // Handle player movement
+    this.handleMovement();
+
+    // Debug: Log player position every few frames
+    if (this.gridEngine && this.player) {
+      const playerPosition = this.gridEngine.getPosition("player");
+      if (playerPosition && (playerPosition.y <= 2 || playerPosition.y >= 58)) {
+        console.log("🌍 DEBUG: Player position:", playerPosition, "isTransitioning:", this.isTransitioning);
+      }
+    }
+
+    // Check for scene transition
+    this.checkForSceneTransition();
+
+    // Check for adjacent players for chat
     this.checkAdjacentPlayers();
   }
 
@@ -879,6 +879,15 @@ export default class WorldScene extends Scene {
       if (data.playerId !== this.playerId) {
         this.handlePlayerPosition(data.playerId, data.movement, data.movement.direction);
       }
+    });
+
+    this.socket.on("sceneTransition", (data: { roomId: string, sceneName: string, playerId: string }) => {
+      console.log("🌍 Received scene transition request:", data);
+      // Remove automatic scene transition following - players should transition independently
+      // if (data.playerId !== this.playerId && data.roomId === this.roomId) {
+      //   console.log("Another player triggered scene transition, following...");
+      //   this.startSceneTransition(data.sceneName);
+      // }
     });
   }
 
@@ -1224,6 +1233,102 @@ export default class WorldScene extends Scene {
     const animName = animMap[direction];
     if (animName) {
       remotePlayer.anims.play(animName, true);
+    }
+  }
+
+  checkForSceneTransition() {
+    console.log("🌍 checkForSceneTransition called");
+    
+    if (!this.gridEngine || !this.tilemap || !this.player) {
+      console.log("🌍 checkForSceneTransition: Missing required components", {
+        gridEngine: !!this.gridEngine,
+        tilemap: !!this.tilemap,
+        player: !!this.player
+      });
+      return;
+    }
+
+    const playerPosition = this.gridEngine.getPosition("player");
+    const topBorderY = 1;
+    const bottomBorderY = Math.floor(this.tilemap.heightInPixels / 32) - 1;
+
+    console.log("🌍 checkForSceneTransition: Player position:", playerPosition, "Top border:", topBorderY, "Bottom border:", bottomBorderY);
+
+    // Top border: transition to scene3
+    if (playerPosition.y <= topBorderY && !this.isTransitioning) {
+      console.log("🌍 Player reached top border, triggering scene transition");
+      console.log("🌍 isTransitioning was:", this.isTransitioning);
+      this.isTransitioning = true;
+      console.log("🌍 isTransitioning set to:", this.isTransitioning);
+      
+      if (this.socket && this.roomId) {
+        console.log("🌍 Emitting sceneTransition socket event");
+        this.socket.emit("sceneTransition", {
+          roomId: this.roomId,
+          sceneName: "scene3", // Changed to lowercase to match scene key
+          playerId: this.socket.id
+        });
+      }
+      
+      console.log("🌍 Calling startSceneTransition");
+      this.startSceneTransition("scene3"); // Changed to lowercase to match scene key
+      return;
+    }
+
+    // Bottom border: transition to IntroScene (or previous room)
+    if (playerPosition.y >= bottomBorderY && !this.isTransitioning) {
+      console.log("🌍 Player reached bottom border, triggering transition to IntroScene");
+      this.isTransitioning = true;
+      if (this.socket && this.roomId) {
+        this.socket.emit("sceneTransition", {
+          roomId: this.roomId,
+          sceneName: "IntroScene",
+          playerId: this.socket.id
+        });
+      }
+      this.startSceneTransition("IntroScene");
+      return;
+    }
+  }
+
+  startSceneTransition(sceneName: string) {
+    console.log(`🌍 Starting transition to ${sceneName}`);
+    console.log("🌍 Scene manager exists:", !!this.scene.manager);
+    console.log("🌍 Scene manager scenes:", this.scene.manager.scenes);
+    
+    const sceneKeys = this.scene.manager.scenes.map(s => s.sys.settings.key);
+    console.log("🌍 Available scenes:", sceneKeys);
+    console.log("🌍 Scene3 exists:", sceneKeys.includes("scene3"));
+    console.log("🌍 Current scene key:", this.scene.key);
+    
+    // Check if Scene3 is in the scene registry
+    console.log("🌍 Scene registry keys:", Object.keys(this.scene.manager.scenes));
+    
+    // Pass multiplayer data to the next scene
+    const transitionData = {
+      socket: this.socket,
+      roomId: this.roomId,
+      playerId: this.playerId,
+      username: this.username,
+      music: this.backgroundMusic
+    };
+    
+    console.log("🌍 Transition data:", transitionData);
+    
+    // Try to start the scene with error handling
+    try {
+      console.log("🌍 Attempting to start scene:", sceneName);
+      console.log("🌍 About to call this.scene.start()");
+      
+      // Stop the current scene (WorldScene) and start the new scene
+      this.scene.stop();
+      this.scene.start(sceneName, transitionData);
+      
+      console.log("🌍 this.scene.start() called successfully");
+    } catch (error) {
+      console.error("🌍 Error starting scene:", error);
+      console.error("🌍 Error details:", error instanceof Error ? error.message : error);
+      console.error("🌍 Error stack:", error instanceof Error ? error.stack : "No stack trace");
     }
   }
 }

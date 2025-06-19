@@ -846,7 +846,13 @@ export default class WorldScene extends Scene {
     this.socket.on("playerJoined", (data: { playerId: string, username: string }) => {
       console.log("Player joined:", data);
       if (data.playerId !== this.playerId) {
-        this.handlePlayerJoined(data.playerId, { username: data.username });
+        // Only add the player if we're not currently joining a room ourselves
+        // This prevents duplicate players when we join an existing room
+        if (!this.remotePlayers.has(data.playerId)) {
+          this.handlePlayerJoined(data.playerId, { username: data.username });
+        } else {
+          console.log("Player already exists, skipping duplicate creation:", data.playerId);
+        }
       }
     });
 
@@ -900,12 +906,26 @@ export default class WorldScene extends Scene {
   addRemotePlayer(playerId: string, playerData: { username: string }, initialPosition?: { x: number; y: number }) {
     if (!this.player || !this.gridEngine) return;
     
+    // Check if player already exists
+    if (this.remotePlayers.has(playerId)) {
+      console.log("Player already exists, skipping creation:", playerId);
+      return;
+    }
+    
     console.log("Adding remote player:", playerId, playerData, "initial position:", initialPosition);
     
     // Use provided position or default to player's position
     const startPos = initialPosition || { x: 5, y: 5 };
-    const worldX = startPos.x * 32 + 16;
-    const worldY = startPos.y * 32 + 16;
+    
+    // Validate position
+    if (startPos.x < 0 || startPos.y < 0 || startPos.x > 50 || startPos.y > 50) {
+      console.warn("Invalid initial position:", startPos, "using default");
+      startPos.x = 5;
+      startPos.y = 5;
+    }
+    
+    const worldX = Math.round(startPos.x * 32 + 16);
+    const worldY = Math.round(startPos.y * 32 + 16);
     
     // Create remote player sprite
     const remotePlayer = this.add.sprite(
@@ -932,6 +952,8 @@ export default class WorldScene extends Scene {
         facingDirection: "down" as Direction,
         speed: 4,
       });
+    } else {
+      console.log("Remote player already exists in GridEngine:", remoteCharId);
     }
   }
 
@@ -959,10 +981,24 @@ export default class WorldScene extends Scene {
   }
 
   removeRemotePlayer(playerId: string) {
+    console.log("Removing remote player:", playerId);
+    
     const remotePlayer = this.remotePlayers.get(playerId);
     if (remotePlayer) {
+      // Remove from GridEngine first
+      const remoteCharId = `remote_${playerId}`;
+      if (this.gridEngine && this.gridEngine.hasCharacter(remoteCharId)) {
+        console.log("Removing from GridEngine:", remoteCharId);
+        this.gridEngine.removeCharacter(remoteCharId);
+      }
+      
+      // Destroy the sprite
       remotePlayer.destroy();
       this.remotePlayers.delete(playerId);
+      
+      console.log("Remote player removed successfully:", playerId);
+    } else {
+      console.warn("Remote player not found for removal:", playerId);
     }
   }
 
@@ -1174,12 +1210,18 @@ export default class WorldScene extends Scene {
     const remotePlayer = this.remotePlayers.get(playerId);
     
     if (this.gridEngine && this.gridEngine.hasCharacter(remoteCharId) && remotePlayer) {
+      // Validate position is within reasonable bounds
+      if (position.x < 0 || position.y < 0 || position.x > 50 || position.y > 50) {
+        console.warn("Invalid position received:", position, "for player:", playerId);
+        return;
+      }
+      
       // Update position in GridEngine
       this.gridEngine.setPosition(remoteCharId, position);
       
-      // Calculate world position from tile position
-      const worldX = position.x * 32 + 16; // 32 is tile size, +16 for center
-      const worldY = position.y * 32 + 16;
+      // Calculate world position from tile position with precise centering
+      const worldX = Math.round(position.x * 32 + 16); // Round to avoid sub-pixel positioning
+      const worldY = Math.round(position.y * 32 + 16);
       remotePlayer.setPosition(worldX, worldY);
       
       // Update facing direction and animation
@@ -1187,6 +1229,8 @@ export default class WorldScene extends Scene {
       this.updateRemotePlayerAnimation(remoteCharId, facingDirection as Direction);
       
       console.log("Updated remote player position:", remoteCharId, position, { x: worldX, y: worldY });
+    } else {
+      console.warn("Cannot update position for player:", playerId, "GridEngine:", !!this.gridEngine, "hasCharacter:", this.gridEngine?.hasCharacter(remoteCharId), "remotePlayer:", !!remotePlayer);
     }
   }
   

@@ -6,8 +6,8 @@ export function useSocket() {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    // Connect to the main server port without path specification
-    const socketInstance = io({
+    // Connect to the socket server on port 3000 (same as Next.js server)
+    const socketInstance = io("http://localhost:3000", {
       transports: ["websocket", "polling"], // Allow both for better reliability
     });
 

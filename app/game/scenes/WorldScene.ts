@@ -390,6 +390,7 @@ export default class WorldScene extends Scene {
       );
       this.roomCodeText.setOrigin(1, 0);
       this.roomCodeText.setDepth(1000);
+      this.roomCodeText.setVisible(false); // Hide the Phaser text element
     } catch (error) {
       console.error("Error in create method:", error);
     }
@@ -942,10 +943,15 @@ export default class WorldScene extends Scene {
       this.roomId = data.roomId;
       if (this.roomCodeText) {
         this.roomCodeText.setText(`Room Code: ${data.roomId}`);
+        this.roomCodeText.setVisible(false); // Hide the Phaser text element
         console.log("Room code text updated");
       } else {
         console.warn("Room code text element not found");
       }
+
+      // Emit event for the React component to update the room code display
+      console.log("Emitting roomCodeUpdated event with code:", data.roomId);
+      this.events.emit("roomCodeUpdated", data.roomId);
     });
 
     this.socket.on(
@@ -961,8 +967,13 @@ export default class WorldScene extends Scene {
         this.playerId = data.playerId;
         if (this.roomCodeText) {
           this.roomCodeText.setText(`Room: ${data.roomId} (Joined)`);
+          this.roomCodeText.setVisible(false); // Hide the Phaser text element
           console.log("Room joined text updated");
         }
+
+        // Emit event for the React component to update the room code display
+        console.log("Emitting roomCodeUpdated event with code:", data.roomId);
+        this.events.emit("roomCodeUpdated", data.roomId);
 
         // Add existing players to the scene
         Object.values(data.players).forEach((player: any) => {
@@ -1021,7 +1032,12 @@ export default class WorldScene extends Scene {
       if (this.roomCodeText) {
         this.roomCodeText.setText(`Error: ${data.message}`);
         this.roomCodeText.setColor("#ff0000");
+        this.roomCodeText.setVisible(false); // Hide the Phaser text element
       }
+
+      // Emit event for the React component to update with error
+      console.log("Emitting roomCodeUpdated event with error:", data.message);
+      this.events.emit("roomCodeUpdated", `Error: ${data.message}`);
     });
 
     this.socket.on(

@@ -16,6 +16,7 @@ import ChatWindow from "./ui/ChatWindow";
 import { useSocket } from "../../lib/hooks/useSocket";
 import { IntroScene } from "./scenes/IntroScene";
 import { PauseScene } from "./scenes/PauseScene";
+import RoomCodeDisplay from "../../components/RoomCodeDisplay";
 
 const GameComponent = () => {
   const [game, setGame] = useState<PhaserGame>();
@@ -25,6 +26,7 @@ const GameComponent = () => {
   const [worldScene, setWorldScene] = useState<WorldScene | null>(null);
   const [introScene, setIntroScene] = useState<IntroScene | null>(null);
   const [pauseScene, setPauseScene] = useState<PauseScene | null>(null);
+  const [roomCode, setRoomCode] = useState<string | null>(null);
 
   useEffect(() => {
     // Make the socket globally available to the Phaser game
@@ -77,6 +79,13 @@ const GameComponent = () => {
         ) as WorldScene;
         if (worldSceneInstance) {
           setWorldScene(worldSceneInstance);
+
+          // Set up a custom event to receive room code updates from the WorldScene
+          console.log("Setting up roomCodeUpdated listener");
+          worldSceneInstance.events.on("roomCodeUpdated", (code: string) => {
+            console.log("Room code updated:", code);
+            setRoomCode(code);
+          });
         } else {
           // Try again in a short while if not found
           setTimeout(checkForWorldScene, 100);
@@ -88,6 +97,9 @@ const GameComponent = () => {
 
       // Cleanup on unmount
       return () => {
+        if (worldScene) {
+          worldScene.events.off("roomCodeUpdated");
+        }
         newGame.destroy(true);
       };
     } catch (error) {
@@ -116,6 +128,8 @@ const GameComponent = () => {
         ref={gameContainerRef}
         style={{ width: "100%", height: "100%" }}
       />
+      {/* Room code display */}
+      <RoomCodeDisplay roomCode={roomCode} />
       {/* Always show the chat window */}
       <ChatWindow
         onSendMessage={handleSendMessage}

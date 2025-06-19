@@ -379,6 +379,15 @@ export default class WorldScene extends Scene {
             this.updatePlayerMovement(position.x, position.y, direction);
             this.updateSpritePosition(position);
             this.playWalkingAnimation(direction);
+            
+            // Send position update to other players
+            if (this.socket && this.roomId) {
+              this.socket.emit("playerPosition", {
+                playerId: this.socket.id,
+                position: position,
+                facingDirection: direction
+              });
+            }
           }
         }
       });
@@ -394,6 +403,15 @@ export default class WorldScene extends Scene {
             this.updatePlayerMovement(position.x, position.y, direction);
             this.updateSpritePosition(position);
             this.playIdleAnimation(direction);
+            
+            // Send final position update to other players
+            if (this.socket && this.roomId) {
+              this.socket.emit("playerPosition", {
+                playerId: this.socket.id,
+                position: position,
+                facingDirection: direction
+              });
+            }
           }
         }
       });
@@ -777,9 +795,39 @@ export default class WorldScene extends Scene {
       // Add existing players to the scene
       Object.values(data.players).forEach((player: any) => {
         if (player.id !== data.playerId) {
-          this.addRemotePlayer(player.id, { username: player.username });
+          console.log("Adding existing player:", player);
+          this.addRemotePlayer(player.id, { username: player.username }, { x: player.x, y: player.y });
+          
+          // Update their position if we have GridEngine ready
+          if (this.gridEngine) {
+            const remoteCharId = `remote_${player.id}`;
+            if (this.gridEngine.hasCharacter(remoteCharId)) {
+              this.gridEngine.setPosition(remoteCharId, { x: player.x, y: player.y });
+              this.gridEngine.turnTowards(remoteCharId, player.direction as Direction);
+              
+              // Update sprite position
+              const worldX = player.x * 32 + 16;
+              const worldY = player.y * 32 + 16;
+              const remotePlayer = this.remotePlayers.get(player.id);
+              if (remotePlayer) {
+                remotePlayer.setPosition(worldX, worldY);
+                this.updateRemotePlayerAnimation(remoteCharId, player.direction as Direction);
+              }
+            }
+          }
         }
       });
+      
+      // Send our current position to all existing players
+      if (this.player && this.gridEngine) {
+        const currentPos = this.gridEngine.getPosition("player");
+        console.log("Sending our position to existing players:", currentPos);
+        this.socket?.emit("playerPosition", {
+          playerId: this.socket.id,
+          position: currentPos,
+          facingDirection: this.gridEngine.getFacingDirection("player")
+        });
+      }
     });
 
     this.socket.on("roomError", (data: { message: string }) => {
@@ -815,6 +863,13 @@ export default class WorldScene extends Scene {
         this.handlePlayerPosition(data.playerId, data.position, data.facingDirection);
       }
     });
+
+    this.socket.on("playerMoved", (data: { playerId: string, movement: { x: number; y: number; direction: string } }) => {
+      console.log("Received player movement:", data);
+      if (data.playerId !== this.playerId) {
+        this.handlePlayerPosition(data.playerId, data.movement, data.movement.direction);
+      }
+    });
   }
 
   createOrJoinRoom(username: string) {
@@ -837,15 +892,20 @@ export default class WorldScene extends Scene {
     this.socket.emit("joinRoom", { roomId, username });
   }
 
-  addRemotePlayer(playerId: string, playerData: { username: string }) {
+  addRemotePlayer(playerId: string, playerData: { username: string }, initialPosition?: { x: number; y: number }) {
     if (!this.player || !this.gridEngine) return;
     
-    console.log("Adding remote player:", playerId, playerData);
+    console.log("Adding remote player:", playerId, playerData, "initial position:", initialPosition);
+    
+    // Use provided position or default to player's position
+    const startPos = initialPosition || { x: 5, y: 5 };
+    const worldX = startPos.x * 32 + 16;
+    const worldY = startPos.y * 32 + 16;
     
     // Create remote player sprite
     const remotePlayer = this.add.sprite(
-      this.player.x,
-      this.player.y,
+      worldX,
+      worldY,
       "rogue"
     );
     remotePlayer.setScale(1);
@@ -859,11 +919,11 @@ export default class WorldScene extends Scene {
     // Add remote player to GridEngine with a unique character ID
     const remoteCharId = `remote_${playerId}`;
     if (!this.gridEngine.hasCharacter(remoteCharId)) {
-      console.log("Adding remote player to GridEngine:", remoteCharId);
+      console.log("Adding remote player to GridEngine:", remoteCharId, "at position:", startPos);
       this.gridEngine.addCharacter({
         id: remoteCharId,
         sprite: remotePlayer,
-        startPosition: { x: 5, y: 5 }, // Default position, will be updated
+        startPosition: startPos,
         facingDirection: "down" as Direction,
         speed: 4,
       });
@@ -1078,8 +1138,17 @@ export default class WorldScene extends Scene {
   handlePlayerJoined(playerId: string, playerData: { username: string }) {
     console.log("Player joined:", playerId, playerData);
     
-    // Add remote player
-    this.addRemotePlayer(playerId, playerData);
+    // Get our current position to set as initial position for the new player
+    let initialPosition = { x: 5, y: 5 }; // Default
+    if (this.player && this.gridEngine) {
+      const currentPos = this.gridEngine.getPosition("player");
+      if (currentPos) {
+        initialPosition = currentPos;
+      }
+    }
+    
+    // Add remote player with our current position as initial
+    this.addRemotePlayer(playerId, playerData, initialPosition);
     
     // Send our current position to the new player
     if (this.player && this.gridEngine) {

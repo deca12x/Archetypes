@@ -8,10 +8,10 @@ import {
   Tilesets,
   Maps,
 } from "../../../lib/game/constants/assets";
-import {
-  getStartPosition,
-  savePlayerPosition,
-} from "../../../lib/game/utils/map";
+// import {
+//   getStartPosition,
+//   savePlayerPosition,
+// } from "../../../lib/game/utils/map";
 import {
   isUIOpen,
   toggleMenu,
@@ -35,6 +35,13 @@ enum Direction {
   RIGHT = "right",
 }
 import { chatService } from "../../../lib/game/utils/chatService";
+import {
+  initializeScene,
+  setupCommonSocketHandlers,
+  checkAdjacentPlayers as checkAdjacentPlayersUtil,
+} from "../../../lib/game/utils/sceneUtils";
+import { handleSceneTransition } from "../../../lib/game/utils/sceneTransitions";
+import { setupSceneTransitions } from "../../../lib/game/utils/sceneTransitions";
 
 // Add a helper function to convert string literals to Direction type
 function toDirection(dir: string): Direction {
@@ -163,18 +170,30 @@ export default class WorldScene extends Scene {
   private backgroundMusic?: Phaser.Sound.BaseSound;
   // private missionCard: MissionCard | null = null;
   private assignedSprite: string = "wizard"; // Default sprite
+  private spawnPosition?: { x: number; y: number };
 
   constructor() {
     super({ key: "WorldScene" });
   }
 
   init(data: any) {
-    // Get socket and mapKey from data passed from BootScene
-    this.socket =
-      data.socket ||
-      (typeof window !== "undefined" ? (window as any).__gameSocket : null);
+    // Use common initialization
+    const { socket, roomId, playerId, username, sprite } = initializeScene(
+      this,
+      data
+    );
+    this.socket = socket;
+    this.roomId = roomId;
+    this.playerId = playerId || socket?.id || "";
+    this.username = username;
+    this.assignedSprite = sprite || "wizard";
     this.mapKey = data.mapKey || "world";
-    this.backgroundMusic = data.music; // Get the music instance from IntroScene
+    this.backgroundMusic = data.music;
+
+    // Handle spawn position if provided
+    if (data.spawnPosition) {
+      this.spawnPosition = data.spawnPosition;
+    }
 
     console.log(
       "WorldScene init called with socket:",
@@ -190,15 +209,6 @@ export default class WorldScene extends Scene {
     if (this.socket) {
       // Set up socket event handlers
       this.setupSocketHandlers();
-
-      // Initialize the chat service
-      chatService.initialize(
-        this.socket,
-        this.socket.id || "local-player",
-        this.username,
-        this.roomId || "",
-        data.sprite
-      );
     }
   }
 
@@ -220,6 +230,9 @@ export default class WorldScene extends Scene {
 
       // Initialize GridEngine
       this.initializeGridEngine();
+
+      // Set up scene transitions
+      setupSceneTransitions(this);
 
       // Set up keyboard input
       if (this.input && this.input.keyboard) {
@@ -938,282 +951,25 @@ export default class WorldScene extends Scene {
   // MULTIPLAYER METHODS
 
   setupSocketHandlers() {
-    console.log("Setting up socket handlers...");
-    if (!this.socket) {
-      console.warn("Socket not available for setting up handlers");
-      return;
-    }
+    if (!this.socket) return;
 
-    this.socket.on(
-      "roomCreated",
-      (data: { roomId: string; playerId: string; sprite: string }) => {
-        console.log("Room created:", data);
-        this.roomId = data.roomId;
-        this.playerId = data.playerId;
+    // Use common socket handlers
+    setupCommonSocketHandlers(this, this.socket);
 
-        // Store the assigned sprite
-        this.assignedSprite = data.sprite;
-        console.log(`Assigned sprite: ${this.assignedSprite}`);
-
-        // Initialize chat service with correct player ID
-        chatService.initialize(
-          this.socket,
-          this.playerId,
-          this.username,
-          this.roomId,
-          data.sprite
-        );
-
-        if (this.roomCodeText) {
-          this.roomCodeText.setText(`Room Code: ${data.roomId}`);
-          this.roomCodeText.setVisible(false); // Hide the Phaser text element
-          console.log("Room code text updated");
-        } else {
-          console.warn("Room code text element not found");
-        }
-
-        // Emit event for the React component to update the room code display
-        console.log("Emitting roomCodeUpdated event with code:", data.roomId);
-        this.events.emit("roomCodeUpdated", data.roomId);
-      }
-    );
-
-    this.socket.on(
-      "roomJoined",
-      (data: {
-        roomId: string;
-        playerId: string;
-        players: any;
-        sprite: string;
-      }) => {
-        console.log("Room joined:", data);
-        this.roomId = data.roomId;
-        this.playerId = data.playerId;
-
-        // Store the assigned sprite
-        this.assignedSprite = data.sprite;
-        console.log(`Assigned sprite: ${this.assignedSprite}`);
-
-        // Initialize chat service with correct player ID
-        chatService.initialize(
-          this.socket,
-          this.playerId,
-          this.username,
-          this.roomId,
-          data.sprite
-        );
-
-        if (this.roomCodeText) {
-          this.roomCodeText.setText(`Room: ${data.roomId} (Joined)`);
-          this.roomCodeText.setVisible(false); // Hide the Phaser text element
-          console.log("Room joined text updated");
-        }
-
-        // Emit event for the React component to update the room code display
-        console.log("Emitting roomCodeUpdated event with code:", data.roomId);
-        this.events.emit("roomCodeUpdated", data.roomId);
-
-        // Add existing players to the scene
-        Object.values(data.players).forEach((player: any) => {
-          if (player.id !== data.playerId) {
-            console.log("Adding existing player:", player);
-            this.addRemotePlayer(
-              player.id,
-              { username: player.username },
-              { x: player.x, y: player.y },
-              player.sprite // Pass the player's sprite
-            );
-
-            // Update their position if we have GridEngine ready
-            if (this.gridEngine) {
-              const remoteCharId = `remote_${player.id}`;
-              if (this.gridEngine.hasCharacter(remoteCharId)) {
-                this.gridEngine.setPosition(remoteCharId, {
-                  x: player.x,
-                  y: player.y,
-                });
-                this.gridEngine.turnTowards(
-                  remoteCharId,
-                  player.direction as Direction
-                );
-
-                // Update sprite position
-                const worldX = player.x * 32 + 16;
-                const worldY = player.y * 32 + 16;
-                const remotePlayer = this.remotePlayers.get(player.id);
-                if (remotePlayer) {
-                  remotePlayer.setPosition(worldX, worldY);
-                  this.updateRemotePlayerAnimation(
-                    remoteCharId,
-                    player.direction as Direction,
-                    player.sprite
-                  );
-                }
-              }
-            }
-          }
-        });
-
-        // Send our current position to all existing players
-        if (this.player && this.gridEngine) {
-          const currentPos = this.gridEngine.getPosition("player");
-          console.log("Sending our position to existing players:", currentPos);
-          this.socket?.emit("playerPosition", {
-            playerId: this.socket.id,
-            position: currentPos,
-            facingDirection: this.gridEngine.getFacingDirection("player"),
-            sprite: this.assignedSprite, // Include our sprite
-          });
-        }
-      }
-    );
-
-    this.socket.on("roomError", (data: { message: string }) => {
-      console.error("Room error:", data.message);
-      if (this.roomCodeText) {
-        this.roomCodeText.setText(`Error: ${data.message}`);
-        this.roomCodeText.setColor("#ff0000");
-        this.roomCodeText.setVisible(false); // Hide the Phaser text element
-      }
-
-      // Emit event for the React component to update with error
-      console.log("Emitting roomCodeUpdated event with error:", data.message);
-      this.events.emit("roomCodeUpdated", `Error: ${data.message}`);
+    // Add any WorldScene-specific socket handlers
+    this.socket.on("roomCreated", (data) => {
+      console.log("Room created:", data);
+      this.roomId = data.roomId;
+      this.events.emit("roomCodeUpdated", data.roomId);
     });
 
-    this.socket.on(
-      "playerJoined",
-      (data: { playerId: string; username: string }) => {
-        console.log("Player joined:", data);
-        if (data.playerId !== this.playerId) {
-          // Only add the player if we're not currently joining a room ourselves
-          // This prevents duplicate players when we join an existing room
-          if (!this.remotePlayers.has(data.playerId)) {
-            this.handlePlayerJoined(data.playerId, { username: data.username });
-          } else {
-            console.log(
-              "Player already exists, skipping duplicate creation:",
-              data.playerId
-            );
-          }
-        }
-      }
-    );
-
-    this.socket.on("playerLeft", (data: { playerId: string }) => {
-      console.log("Player left:", data);
-      this.removeRemotePlayer(data.playerId);
+    this.socket.on("roomJoined", (data) => {
+      console.log("Room joined:", data);
+      this.roomId = data.roomId;
+      this.events.emit("roomCodeUpdated", data.roomId);
     });
 
-    this.socket.on(
-      "chatMessage",
-      (data: {
-        playerId: string;
-        username: string;
-        message: string;
-        groupId?: string;
-        sprite?: string;
-      }) => {
-        console.log("Received chat message:", data);
-
-        // Skip our own messages that might be echoed back
-        if (data.playerId !== this.playerId) {
-          // Handle incoming chat message using the chat service
-          chatService.handleIncomingMessage(data);
-        } else {
-          console.log("Skipping own message that was echoed back");
-        }
-      }
-    );
-
-    this.socket.on(
-      "playerPosition",
-      (data: {
-        playerId: string;
-        position: { x: number; y: number };
-        facingDirection: string;
-      }) => {
-        console.log("Received player position:", data);
-        if (data.playerId !== this.playerId) {
-          this.handlePlayerPosition(
-            data.playerId,
-            data.position,
-            data.facingDirection
-          );
-        }
-      }
-    );
-
-    this.socket.on(
-      "sceneTransition",
-      (data: { roomId: string; sceneName: string; playerId: string }) => {
-        console.log("🌍 Received scene transition request:", data);
-        // Remove automatic scene transition following - players should transition independently
-        // if (data.playerId !== this.playerId && data.roomId === this.roomId) {
-        //   console.log("Another player triggered scene transition, following...");
-        //   this.startSceneTransition(data.sceneName);
-        // }
-      }
-    );
-
-    // Handle scene change events
-    this.socket.on(
-      "playerSceneChanged",
-      (data: {
-        playerId: string;
-        previousScene: string;
-        newScene: string;
-        player: any;
-      }) => {
-        console.log("🌍 Player scene changed:", data);
-
-        if (data.playerId === this.playerId) {
-          // This is our own scene change, ignore
-          return;
-        }
-
-        if (
-          data.previousScene === "WorldScene" &&
-          data.newScene !== "WorldScene"
-        ) {
-          // Player left WorldScene, remove them
-          console.log("🌍 Player left WorldScene, removing:", data.playerId);
-          this.removeRemotePlayer(data.playerId);
-        } else if (
-          data.previousScene !== "WorldScene" &&
-          data.newScene === "WorldScene"
-        ) {
-          // Player entered WorldScene, add them
-          console.log("🌍 Player entered WorldScene, adding:", data.playerId);
-          this.handlePlayerJoined(data.playerId, data.player);
-        }
-      }
-    );
-
-    // Handle when we enter a scene and need to see other players
-    this.socket.on(
-      "playersInScene",
-      (data: { sceneName: string; players: any[] }) => {
-        console.log("🌍 Players in scene:", data);
-        if (data.sceneName === "WorldScene") {
-          // Add all players who are already in WorldScene
-          data.players.forEach((player) => {
-            this.handlePlayerJoined(player.id, player);
-          });
-        }
-      }
-    );
-
-    // Handle when another player enters our scene
-    this.socket.on(
-      "playerEnteredScene",
-      (data: { sceneName: string; player: any }) => {
-        console.log("🌍 Player entered scene:", data);
-        if (data.sceneName === "WorldScene") {
-          this.handlePlayerJoined(data.player.id, data.player);
-        }
-      }
-    );
+    // Add any other WorldScene-specific handlers
   }
 
   createOrJoinRoom(username: string) {
@@ -1337,37 +1093,7 @@ export default class WorldScene extends Scene {
   }
 
   checkAdjacentPlayers() {
-    if (!this.socket || !this.roomId || !this.playerId || !this.gridEngine)
-      return;
-
-    console.log(`Checking adjacent players for ${this.playerId}`);
-
-    const playerPosition = this.gridEngine.getPosition("player");
-    if (!playerPosition) return;
-
-    // Clear the set of adjacent players
-    const adjacentPlayers = new Set<string>();
-
-    // Check each remote player
-    for (const [playerId, remotePlayer] of this.remotePlayers.entries()) {
-      const remoteCharId = `remote_${playerId}`;
-      if (!this.gridEngine.hasCharacter(remoteCharId)) continue;
-
-      const remotePosition = this.gridEngine.getPosition(remoteCharId);
-      if (!remotePosition) continue;
-
-      // Calculate distance (Manhattan distance for simplicity)
-      const dx = Math.abs(playerPosition.x - remotePosition.x);
-      const dy = Math.abs(playerPosition.y - remotePosition.y);
-
-      if (dx + dy <= 1) {
-        // This player is adjacent, add to our set
-        adjacentPlayers.add(playerId);
-      }
-    }
-
-    // Update the chat service with the new adjacent players
-    chatService.updateAdjacentPlayers(adjacentPlayers);
+    checkAdjacentPlayersUtil(this, this.gridEngine, this.playerId);
   }
 
   sendChatMessage(message: string) {
@@ -1618,103 +1344,7 @@ export default class WorldScene extends Scene {
   }
 
   checkForSceneTransition() {
-    console.log("🌍 checkForSceneTransition called");
-
-    if (!this.gridEngine || !this.tilemap || !this.player) {
-      console.log("🌍 checkForSceneTransition: Missing required components", {
-        gridEngine: !!this.gridEngine,
-        tilemap: !!this.tilemap,
-        player: !!this.player,
-      });
-      return;
-    }
-
-    const playerPosition = this.gridEngine.getPosition("player");
-    const topBorderY = 1;
-    const bottomBorderY = Math.floor(this.tilemap.heightInPixels / 32) - 1;
-
-    console.log(
-      "🌍 checkForSceneTransition: Player position:",
-      playerPosition,
-      "Top border:",
-      topBorderY,
-      "Bottom border:",
-      bottomBorderY
-    );
-
-    // Top border: transition to scene3
-    if (playerPosition.y <= topBorderY && !this.isTransitioning) {
-      console.log("🌍 Player reached top border, triggering scene transition");
-      console.log("🌍 isTransitioning was:", this.isTransitioning);
-      this.isTransitioning = true;
-      console.log("🌍 isTransitioning set to:", this.isTransitioning);
-
-      if (this.socket && this.roomId) {
-        console.log("🌍 Emitting sceneTransition socket event");
-        this.socket.emit("sceneTransition", {
-          roomId: this.roomId,
-          sceneName: "scene3", // Changed to lowercase to match scene key
-          playerId: this.socket.id,
-        });
-      }
-
-      console.log("🌍 Calling startSceneTransition");
-      this.startSceneTransition("scene3"); // Changed to lowercase to match scene key
-      return;
-    }
-
-    // Bottom border: transition to IntroScene (or previous room)
-    if (playerPosition.y >= bottomBorderY && !this.isTransitioning) {
-      console.log(
-        "🌍 Player reached bottom border, triggering transition to IntroScene"
-      );
-      this.isTransitioning = true;
-      if (this.socket && this.roomId) {
-        this.socket.emit("sceneTransition", {
-          roomId: this.roomId,
-          sceneName: "IntroScene",
-          playerId: this.socket.id,
-        });
-      }
-      this.startSceneTransition("IntroScene");
-      return;
-    }
-  }
-
-  private startSceneTransition(sceneName: string) {
-    if (this.isTransitioning) return;
-    this.isTransitioning = true;
-
-    console.log(`Starting transition to ${sceneName}`);
-
-    // Notify the server about the scene change
-    if (this.socket && this.roomId) {
-      this.socket.emit("sceneTransition", {
-        roomId: this.roomId,
-        sceneName,
-        playerId: this.playerId,
-      });
-    }
-
-    // Get the sprite from the socket server's player data
-    let sprite = "";
-    if (this.socket && this.socket.id && this.roomId) {
-      // Try to get the sprite from the game room data
-      // This is a simplification - in a real implementation, you might need to query the server
-      // or store the sprite locally when it's first assigned
-      sprite = (window as any).__playerSprite || "";
-    }
-
-    // Prepare data to pass to the next scene
-    const transitionData = {
-      socket: this.socket,
-      roomId: this.roomId,
-      playerId: this.playerId,
-      username: this.username,
-      sprite: sprite, // Pass the sprite to the next scene
-    };
-
-    // Start the next scene
-    this.scene.start(sceneName, transitionData);
+    // This will be implemented by setupSceneTransitions
+    // but we need to declare it for TypeScript
   }
 }

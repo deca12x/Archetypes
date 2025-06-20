@@ -1,11 +1,22 @@
 import { Scene, GameObjects, Tilemaps } from "phaser";
 import { Socket } from "socket.io-client";
 import GridEngine from "grid-engine";
-import { MissionCard } from "../components/MissionCard";
+// import { MissionCard } from "../components/MissionCard";
 import { chatService } from "../../../lib/game/utils/chatService";
+import {
+  initializeScene,
+  setupCommonSocketHandlers,
+  checkAdjacentPlayers,
+} from "../../../lib/game/utils/sceneUtils";
+import { handleSceneTransition } from "../../../lib/game/utils/sceneTransitions";
+import { setupSceneTransitions } from "../../../lib/game/utils/sceneTransitions";
 
-// Using string literal types instead of importing Direction from grid-engine
-type Direction = "up" | "down" | "left" | "right";
+enum Direction {
+  UP = "up",
+  DOWN = "down",
+  LEFT = "left",
+  RIGHT = "right",
+}
 
 // Define GridEngineConfig interface
 interface GridEngineConfig {
@@ -69,7 +80,7 @@ export default class Scene4 extends Scene {
   } | null = null;
   private collisionLayer: Phaser.Tilemaps.TilemapLayer | null = null;
   private groundDaytimeLayer: Phaser.Tilemaps.TilemapLayer | null = null;
-  private missionCard: MissionCard | null = null;
+  // private missionCard: MissionCard | null = null;
 
   // Multiplayer properties
   public username: string = "Player";
@@ -80,6 +91,7 @@ export default class Scene4 extends Scene {
   private gridEngineReady: boolean = false;
   private remotePlayers: Map<string, Phaser.GameObjects.Sprite> = new Map();
   private isTransitioning: boolean = false;
+  private sprite: string = "";
 
   constructor() {
     super({ key: "scene4" });
@@ -87,14 +99,15 @@ export default class Scene4 extends Scene {
   }
 
   init(data: any) {
-    // Get multiplayer data from previous scene
-    this.socket =
-      data.socket ||
-      (typeof window !== "undefined" ? (window as any).__gameSocket : null);
-    this.roomId = data.roomId || "";
-    this.playerId = data.playerId || "";
-    this.username = data.username || "Player";
-    const sprite = data.sprite || ""; // Get sprite from data
+    const { socket, roomId, playerId, username, sprite } = initializeScene(
+      this,
+      data
+    );
+    this.socket = socket;
+    this.roomId = roomId;
+    this.playerId = playerId;
+    this.username = username;
+    this.sprite = sprite;
 
     console.log(
       "Scene4 init called with socket:",
@@ -103,19 +116,10 @@ export default class Scene4 extends Scene {
     console.log("Scene4 init - roomId:", this.roomId);
     console.log("Scene4 init - playerId:", this.playerId);
     console.log("Scene4 init - username:", this.username);
-    console.log("Scene4 init - sprite:", sprite);
+    console.log("Scene4 init - sprite:", this.sprite);
 
     if (this.socket) {
       this.setupSocketHandlers();
-
-      // Initialize the chat service with sprite
-      chatService.initialize(
-        this.socket,
-        this.playerId,
-        this.username,
-        this.roomId,
-        sprite // Pass the sprite to the chat service
-      );
     }
   }
 
@@ -130,6 +134,9 @@ export default class Scene4 extends Scene {
 
     // Initialize GridEngine
     this.initializeGridEngine();
+
+    // Set up scene transitions
+    setupSceneTransitions(this);
 
     // Set up keyboard input
     if (this.input && this.input.keyboard) {
@@ -158,8 +165,8 @@ export default class Scene4 extends Scene {
     }
 
     // Initialize mission card
-    this.missionCard = new MissionCard(this);
-    this.missionCard.show();
+    // this.missionCard = new MissionCard(this);
+    // this.missionCard.show();
 
     // Notify server that we've entered Scene4
     if (this.socket && this.roomId) {
@@ -194,7 +201,7 @@ export default class Scene4 extends Scene {
     // Handle player movement
     this.handleMovement();
 
-    // Check for scene transition (left border to WorldScene)
+    // Check for scene transition using common utility
     this.checkForSceneTransition();
 
     // Check for adjacent players for chat
@@ -316,7 +323,7 @@ export default class Scene4 extends Scene {
               x: Math.floor(this.player.x / 32),
               y: Math.floor(this.player.y / 32),
             },
-            facingDirection: "down" as Direction,
+            facingDirection: Direction.DOWN as Direction,
             speed: 4,
           },
         ],
@@ -406,10 +413,18 @@ export default class Scene4 extends Scene {
             const targetPosition = {
               x:
                 currentPosition.x +
-                (direction === "left" ? -1 : direction === "right" ? 1 : 0),
+                (direction === Direction.LEFT
+                  ? -1
+                  : direction === Direction.RIGHT
+                  ? 1
+                  : 0),
               y:
                 currentPosition.y +
-                (direction === "up" ? -1 : direction === "down" ? 1 : 0),
+                (direction === Direction.UP
+                  ? -1
+                  : direction === Direction.DOWN
+                  ? 1
+                  : 0),
             };
 
             this.updateSpritePosition(currentPosition);
@@ -469,7 +484,7 @@ export default class Scene4 extends Scene {
         const position = this.gridEngine?.getPosition("player");
         if (position) {
           this.updateSpritePosition(position);
-          this.playIdleAnimation(data.direction || "down");
+          this.playIdleAnimation(data.direction || Direction.DOWN);
         }
       }
     });
@@ -520,16 +535,16 @@ export default class Scene4 extends Scene {
     let animationKey = "rogue_walk_down"; // default
 
     switch (direction) {
-      case "up":
+      case Direction.UP:
         animationKey = "rogue_walk_up";
         break;
-      case "down":
+      case Direction.DOWN:
         animationKey = "rogue_walk_down";
         break;
-      case "left":
+      case Direction.LEFT:
         animationKey = "rogue_walk_left";
         break;
-      case "right":
+      case Direction.RIGHT:
         animationKey = "rogue_walk_right";
         break;
     }
@@ -560,16 +575,16 @@ export default class Scene4 extends Scene {
     let animationKey = "rogue_idle_down"; // default
 
     switch (direction) {
-      case "up":
+      case Direction.UP:
         animationKey = "rogue_idle_up";
         break;
-      case "down":
+      case Direction.DOWN:
         animationKey = "rogue_idle_down";
         break;
-      case "left":
+      case Direction.LEFT:
         animationKey = "rogue_idle_left";
         break;
-      case "right":
+      case Direction.RIGHT:
         animationKey = "rogue_idle_right";
         break;
     }
@@ -622,16 +637,16 @@ export default class Scene4 extends Scene {
 
     // Check for input and set direction (only cardinal directions)
     if (this.cursors.left.isDown || this.wasdKeys.left.isDown) {
-      direction = "left";
+      direction = Direction.LEFT;
       console.log("🎬 Scene4 Left key pressed");
     } else if (this.cursors.right.isDown || this.wasdKeys.right.isDown) {
-      direction = "right";
+      direction = Direction.RIGHT;
       console.log("🎬 Scene4 Right key pressed");
     } else if (this.cursors.up.isDown || this.wasdKeys.up.isDown) {
-      direction = "up";
+      direction = Direction.UP;
       console.log("🎬 Scene4 Up key pressed");
     } else if (this.cursors.down.isDown || this.wasdKeys.down.isDown) {
-      direction = "down";
+      direction = Direction.DOWN;
       console.log("🎬 Scene4 Down key pressed");
     }
 
@@ -652,10 +667,18 @@ export default class Scene4 extends Scene {
       // Check if the target position would be valid
       const targetX =
         beforePosition.x +
-        (direction === "left" ? -1 : direction === "right" ? 1 : 0);
+        (direction === Direction.LEFT
+          ? -1
+          : direction === Direction.RIGHT
+          ? 1
+          : 0);
       const targetY =
         beforePosition.y +
-        (direction === "up" ? -1 : direction === "down" ? 1 : 0);
+        (direction === Direction.UP
+          ? -1
+          : direction === Direction.DOWN
+          ? 1
+          : 0);
       console.log("🎬 Scene4 Target position:", { x: targetX, y: targetY });
 
       // Check if target position is within map bounds
@@ -719,10 +742,18 @@ export default class Scene4 extends Scene {
             if (this.gridEngine && direction) {
               const targetX =
                 beforePosition.x +
-                (direction === "left" ? -1 : direction === "right" ? 1 : 0);
+                (direction === Direction.LEFT
+                  ? -1
+                  : direction === Direction.RIGHT
+                  ? 1
+                  : 0);
               const targetY =
                 beforePosition.y +
-                (direction === "up" ? -1 : direction === "down" ? 1 : 0);
+                (direction === Direction.UP
+                  ? -1
+                  : direction === Direction.DOWN
+                  ? 1
+                  : 0);
 
               console.log("🎬 Scene4 Forcing GridEngine to target position:", {
                 x: targetX,
@@ -738,169 +769,13 @@ export default class Scene4 extends Scene {
   }
 
   private checkForSceneTransition() {
-    if (!this.gridEngine || !this.tilemap || !this.player) return;
-
-    const playerPosition = this.gridEngine.getPosition("player");
-
-    // Check if player is at the left border (any vertical position, but at the left)
-    const leftBorderX = 0;
-
-    if (playerPosition.x <= leftBorderX && !this.isTransitioning) {
-      console.log(
-        "Player reached left border, triggering transition to WorldScene"
-      );
-      this.isTransitioning = true;
-
-      // Notify other players about the transition
-      if (this.socket && this.roomId) {
-        this.socket.emit("sceneTransition", {
-          roomId: this.roomId,
-          sceneName: "WorldScene",
-          playerId: this.socket.id,
-        });
-      }
-
-      // Start the transition for this player
-      this.startSceneTransition("WorldScene");
-    }
-  }
-
-  private startSceneTransition(sceneName: string) {
-    if (this.isTransitioning) return;
-    this.isTransitioning = true;
-
-    console.log(`Starting transition to ${sceneName}`);
-
-    // Notify the server about the scene change
-    if (this.socket && this.roomId) {
-      this.socket.emit("sceneTransition", {
-        roomId: this.roomId,
-        sceneName,
-        playerId: this.playerId,
-      });
-    }
-
-    // Get the sprite from the socket server's player data
-    let sprite = "";
-    if (this.socket && this.socket.id && this.roomId) {
-      // Try to get the sprite from the game room data
-      // This is a simplification - in a real implementation, you might need to query the server
-      // or store the sprite locally when it's first assigned
-      sprite = (window as any).__playerSprite || "";
-    }
-
-    // Prepare data to pass to the next scene
-    const transitionData = {
-      socket: this.socket,
-      roomId: this.roomId,
-      playerId: this.playerId,
-      username: this.username,
-      sprite: sprite, // Pass the sprite to the next scene
-    };
-
-    // Start the next scene
-    this.scene.start(sceneName, transitionData);
+    // This will be implemented by setupSceneTransitions
+    // but we need to declare it for TypeScript
   }
 
   setupSocketHandlers() {
-    console.log("🎬 Scene4 Setting up socket handlers...");
-    if (!this.socket) {
-      console.warn("🎬 Scene4 Socket not available for setting up handlers");
-      return;
-    }
-
-    this.socket.on(
-      "playerPosition",
-      (data: {
-        playerId: string;
-        position: { x: number; y: number };
-        facingDirection: string;
-      }) => {
-        console.log("🎬 Scene4: Received player position:", data);
-        if (data.playerId !== this.playerId) {
-          this.handlePlayerPosition(
-            data.playerId,
-            data.position,
-            data.facingDirection
-          );
-        }
-      }
-    );
-
-    // Handle scene change events
-    this.socket.on(
-      "playerSceneChanged",
-      (data: {
-        playerId: string;
-        previousScene: string;
-        newScene: string;
-        player: any;
-      }) => {
-        console.log("🎬 Scene4 Player scene changed:", data);
-
-        if (data.playerId === this.playerId) {
-          // This is our own scene change, ignore
-          return;
-        }
-
-        if (data.previousScene === "scene4" && data.newScene !== "scene4") {
-          // Player left Scene4, remove them
-          console.log("🎬 Scene4 Player left Scene4, removing:", data.playerId);
-          this.removeRemotePlayer(data.playerId);
-        } else if (
-          data.previousScene !== "scene4" &&
-          data.newScene === "scene4"
-        ) {
-          // Player entered Scene4, add them
-          console.log(
-            "🎬 Scene4 Player entered Scene4, adding:",
-            data.playerId
-          );
-          this.handlePlayerJoined(data.playerId, data.player);
-        }
-      }
-    );
-
-    // Handle when we enter a scene and need to see other players
-    this.socket.on(
-      "playersInScene",
-      (data: { sceneName: string; players: any[] }) => {
-        console.log("🎬 Scene4 Players in scene:", data);
-        if (data.sceneName === "scene4") {
-          // Add all players who are already in Scene4
-          data.players.forEach((player) => {
-            this.handlePlayerJoined(player.id, player);
-          });
-        }
-      }
-    );
-
-    // Handle when another player enters our scene
-    this.socket.on(
-      "playerEnteredScene",
-      (data: { sceneName: string; player: any }) => {
-        console.log("🎬 Scene4 Player entered scene:", data);
-        if (data.sceneName === "scene4") {
-          this.handlePlayerJoined(data.player.id, data.player);
-        }
-      }
-    );
-
-    // Add chat message handler
-    this.socket.on(
-      "chatMessage",
-      (data: {
-        playerId: string;
-        username: string;
-        message: string;
-        groupId?: string;
-      }) => {
-        if (data.playerId !== this.playerId) {
-          // Handle incoming chat message using the chat service
-          chatService.handleIncomingMessage(data);
-        }
-      }
-    );
+    if (!this.socket) return;
+    setupCommonSocketHandlers(this, this.socket);
   }
 
   handlePlayerPosition(
@@ -1111,7 +986,7 @@ export default class Scene4 extends Scene {
         id: remoteCharId,
         sprite: remotePlayer,
         startPosition: startPos,
-        facingDirection: "down" as Direction,
+        facingDirection: Direction.DOWN as Direction,
         speed: 4,
       });
     } else {
@@ -1145,39 +1020,10 @@ export default class Scene4 extends Scene {
   }
 
   checkAdjacentPlayers() {
-    if (!this.socket || !this.roomId || !this.playerId || !this.gridEngine)
-      return;
-
-    const playerPosition = this.gridEngine.getPosition("player");
-    if (!playerPosition) return;
-
-    // Clear the set of adjacent players
-    const adjacentPlayers = new Set<string>();
-
-    // Check each remote player
-    for (const [playerId, remotePlayer] of this.remotePlayers.entries()) {
-      const remoteCharId = `remote_${playerId}`;
-      if (!this.gridEngine.hasCharacter(remoteCharId)) continue;
-
-      const remotePosition = this.gridEngine.getPosition(remoteCharId);
-      if (!remotePosition) continue;
-
-      // Calculate distance (Manhattan distance for simplicity)
-      const dx = Math.abs(playerPosition.x - remotePosition.x);
-      const dy = Math.abs(playerPosition.y - remotePosition.y);
-
-      if (dx + dy <= 1) {
-        // This player is adjacent, add to our set
-        adjacentPlayers.add(playerId);
-      }
-    }
-
-    // Update the chat service with the new adjacent players
-    chatService.updateAdjacentPlayers(adjacentPlayers);
+    checkAdjacentPlayers(this, this.gridEngine, this.playerId);
   }
 
   sendChatMessage(message: string) {
-    // Use the chat service to send the message
     chatService.sendMessage(message);
   }
 }

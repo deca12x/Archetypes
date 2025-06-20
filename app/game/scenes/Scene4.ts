@@ -94,21 +94,27 @@ export default class Scene4 extends Scene {
     this.roomId = data.roomId || "";
     this.playerId = data.playerId || "";
     this.username = data.username || "Player";
+    const sprite = data.sprite || ""; // Get sprite from data
 
     console.log(
       "Scene4 init called with socket:",
       this.socket ? "available" : "not available"
     );
+    console.log("Scene4 init - roomId:", this.roomId);
+    console.log("Scene4 init - playerId:", this.playerId);
+    console.log("Scene4 init - username:", this.username);
+    console.log("Scene4 init - sprite:", sprite);
 
     if (this.socket) {
       this.setupSocketHandlers();
 
-      // Initialize the chat service
+      // Initialize the chat service with sprite
       chatService.initialize(
         this.socket,
         this.playerId,
         this.username,
-        this.roomId
+        this.roomId,
+        sprite // Pass the sprite to the chat service
       );
     }
   }
@@ -760,18 +766,39 @@ export default class Scene4 extends Scene {
   }
 
   private startSceneTransition(sceneName: string) {
-    console.log(`🎬 Scene4 Starting transition to ${sceneName}`);
+    if (this.isTransitioning) return;
+    this.isTransitioning = true;
 
-    // Pass multiplayer data to the next scene
+    console.log(`Starting transition to ${sceneName}`);
+
+    // Notify the server about the scene change
+    if (this.socket && this.roomId) {
+      this.socket.emit("sceneTransition", {
+        roomId: this.roomId,
+        sceneName,
+        playerId: this.playerId,
+      });
+    }
+
+    // Get the sprite from the socket server's player data
+    let sprite = "";
+    if (this.socket && this.socket.id && this.roomId) {
+      // Try to get the sprite from the game room data
+      // This is a simplification - in a real implementation, you might need to query the server
+      // or store the sprite locally when it's first assigned
+      sprite = (window as any).__playerSprite || "";
+    }
+
+    // Prepare data to pass to the next scene
     const transitionData = {
       socket: this.socket,
       roomId: this.roomId,
       playerId: this.playerId,
       username: this.username,
+      sprite: sprite, // Pass the sprite to the next scene
     };
 
-    // Stop the current scene (Scene4) and start the new scene
-    this.scene.stop();
+    // Start the next scene
     this.scene.start(sceneName, transitionData);
   }
 

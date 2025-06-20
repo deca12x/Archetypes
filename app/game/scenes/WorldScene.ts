@@ -189,7 +189,8 @@ export default class WorldScene extends Scene {
         this.socket,
         this.socket.id || "local-player",
         this.username,
-        this.roomId || ""
+        this.roomId || "",
+        data.sprite
       );
     }
   }
@@ -954,21 +955,35 @@ export default class WorldScene extends Scene {
       return;
     }
 
-    this.socket.on("roomCreated", (data: { roomId: string }) => {
-      console.log("Room created:", data.roomId);
-      this.roomId = data.roomId;
-      if (this.roomCodeText) {
-        this.roomCodeText.setText(`Room Code: ${data.roomId}`);
-        this.roomCodeText.setVisible(false); // Hide the Phaser text element
-        console.log("Room code text updated");
-      } else {
-        console.warn("Room code text element not found");
-      }
+    this.socket.on(
+      "roomCreated",
+      (data: { roomId: string; playerId: string; sprite: string }) => {
+        console.log("Room created:", data);
+        this.roomId = data.roomId;
+        this.playerId = data.playerId;
 
-      // Emit event for the React component to update the room code display
-      console.log("Emitting roomCodeUpdated event with code:", data.roomId);
-      this.events.emit("roomCodeUpdated", data.roomId);
-    });
+        // Initialize chat service with correct player ID
+        chatService.initialize(
+          this.socket,
+          this.playerId,
+          this.username,
+          this.roomId,
+          data.sprite
+        );
+
+        if (this.roomCodeText) {
+          this.roomCodeText.setText(`Room Code: ${data.roomId}`);
+          this.roomCodeText.setVisible(false); // Hide the Phaser text element
+          console.log("Room code text updated");
+        } else {
+          console.warn("Room code text element not found");
+        }
+
+        // Emit event for the React component to update the room code display
+        console.log("Emitting roomCodeUpdated event with code:", data.roomId);
+        this.events.emit("roomCodeUpdated", data.roomId);
+      }
+    );
 
     this.socket.on(
       "roomJoined",
@@ -981,6 +996,16 @@ export default class WorldScene extends Scene {
         console.log("Room joined:", data);
         this.roomId = data.roomId;
         this.playerId = data.playerId;
+
+        // Initialize chat service with correct player ID
+        chatService.initialize(
+          this.socket,
+          this.playerId,
+          this.username,
+          this.roomId,
+          data.sprite
+        );
+
         if (this.roomCodeText) {
           this.roomCodeText.setText(`Room: ${data.roomId} (Joined)`);
           this.roomCodeText.setVisible(false); // Hide the Phaser text element
@@ -1087,10 +1112,16 @@ export default class WorldScene extends Scene {
         username: string;
         message: string;
         groupId?: string;
+        sprite?: string;
       }) => {
+        console.log("Received chat message:", data);
+
+        // Skip our own messages that might be echoed back
         if (data.playerId !== this.playerId) {
           // Handle incoming chat message using the chat service
           chatService.handleIncomingMessage(data);
+        } else {
+          console.log("Skipping own message that was echoed back");
         }
       }
     );
@@ -1300,6 +1331,8 @@ export default class WorldScene extends Scene {
   checkAdjacentPlayers() {
     if (!this.socket || !this.roomId || !this.playerId || !this.gridEngine)
       return;
+
+    console.log(`Checking adjacent players for ${this.playerId}`);
 
     const playerPosition = this.gridEngine.getPosition("player");
     if (!playerPosition) return;
@@ -1629,53 +1662,40 @@ export default class WorldScene extends Scene {
     }
   }
 
-  startSceneTransition(sceneName: string) {
-    console.log(`🌍 Starting transition to ${sceneName}`);
-    console.log("🌍 Scene manager exists:", !!this.scene.manager);
-    console.log("🌍 Scene manager scenes:", this.scene.manager.scenes);
+  private startSceneTransition(sceneName: string) {
+    if (this.isTransitioning) return;
+    this.isTransitioning = true;
 
-    const sceneKeys = this.scene.manager.scenes.map((s) => s.sys.settings.key);
-    console.log("🌍 Available scenes:", sceneKeys);
-    console.log("🌍 Scene3 exists:", sceneKeys.includes("scene3"));
-    console.log("🌍 Current scene key:", this.scene.key);
+    console.log(`Starting transition to ${sceneName}`);
 
-    // Check if Scene3 is in the scene registry
-    console.log(
-      "🌍 Scene registry keys:",
-      Object.keys(this.scene.manager.scenes)
-    );
+    // Notify the server about the scene change
+    if (this.socket && this.roomId) {
+      this.socket.emit("sceneTransition", {
+        roomId: this.roomId,
+        sceneName,
+        playerId: this.playerId,
+      });
+    }
 
-    // Pass multiplayer data to the next scene
+    // Get the sprite from the socket server's player data
+    let sprite = "";
+    if (this.socket && this.socket.id && this.roomId) {
+      // Try to get the sprite from the game room data
+      // This is a simplification - in a real implementation, you might need to query the server
+      // or store the sprite locally when it's first assigned
+      sprite = (window as any).__playerSprite || "";
+    }
+
+    // Prepare data to pass to the next scene
     const transitionData = {
       socket: this.socket,
       roomId: this.roomId,
       playerId: this.playerId,
       username: this.username,
-      music: this.backgroundMusic,
+      sprite: sprite, // Pass the sprite to the next scene
     };
 
-    console.log("🌍 Transition data:", transitionData);
-
-    // Try to start the scene with error handling
-    try {
-      console.log("🌍 Attempting to start scene:", sceneName);
-      console.log("🌍 About to call this.scene.start()");
-
-      // Stop the current scene (WorldScene) and start the new scene
-      this.scene.stop();
-      this.scene.start(sceneName, transitionData);
-
-      console.log("🌍 this.scene.start() called successfully");
-    } catch (error) {
-      console.error("🌍 Error starting scene:", error);
-      console.error(
-        "🌍 Error details:",
-        error instanceof Error ? error.message : error
-      );
-      console.error(
-        "🌍 Error stack:",
-        error instanceof Error ? error.stack : "No stack trace"
-      );
-    }
+    // Start the next scene
+    this.scene.start(sceneName, transitionData);
   }
 }

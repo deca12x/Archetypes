@@ -453,13 +453,36 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
           `Chat message received from ${senderUsername} (${senderPlayerId}) in group ${groupId}`
         );
 
-        // Broadcast chat message to players in the same room
-        // Using chatMessage event name to match client listeners
-        socket.to(roomId).emit("chatMessage", {
-          playerId: senderPlayerId,
-          username: senderUsername,
-          message,
-          groupId, // Include groupId so clients can filter
+        // Extract all player IDs from the group ID
+        const groupPlayerIds = groupId.split("-");
+
+        // Broadcast the message to all players in the group (except the sender)
+        groupPlayerIds.forEach((targetPlayerId) => {
+          // Skip sending to self
+          if (targetPlayerId === senderPlayerId) return;
+
+          // Find the socket ID for this player
+          const targetSocketId = targetPlayerId; // In this case, playerId is the socket ID
+
+          // Send the message directly to this player's socket
+          if (io.sockets.sockets.has(targetSocketId)) {
+            io.to(targetSocketId).emit("chatMessage", {
+              playerId: senderPlayerId,
+              username: senderUsername,
+              message,
+              groupId,
+              sprite: player.sprite,
+            });
+
+            console.log(`Message sent to group member: ${targetPlayerId}`);
+          }
+        });
+
+        // Send confirmation back to sender
+        socket.emit("chatMessageSent", {
+          success: true,
+          messageId: Date.now().toString(),
+          groupId,
         });
       }
     );

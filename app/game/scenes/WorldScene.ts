@@ -1,7 +1,7 @@
 import { Scene, GameObjects, Tilemaps } from "phaser";
 import { Socket } from "socket.io-client";
 import { Player } from "../../../lib/socket/socketServer";
-import GridEngine from "grid-engine"; // Add direct import
+import GridEngine from "grid-engine";
 import {
   Sprites,
   Layers,
@@ -26,8 +26,14 @@ import { useUserDataStore } from "../../../lib/game/stores/userData";
 import { useChatStore } from "../../../lib/game/stores/chat";
 import { useUIStore } from "../../../lib/game/stores/ui";
 import { useSocket } from "../../../lib/hooks/useSocket";
-import { MissionCard } from "../components/MissionCard";
-import { Direction } from "grid-engine";
+// import { MissionCard } from "../components/MissionCard";
+// Define Direction enum since it's not exported from grid-engine
+enum Direction {
+  UP = "up",
+  DOWN = "down",
+  LEFT = "left",
+  RIGHT = "right",
+}
 import { chatService } from "../../../lib/game/utils/chatService";
 
 // Add a helper function to convert string literals to Direction type
@@ -155,7 +161,7 @@ export default class WorldScene extends Scene {
   private chatGroupId: string = "";
   private adjacentPlayers: Set<string> = new Set();
   private backgroundMusic?: Phaser.Sound.BaseSound;
-  private missionCard: MissionCard | null = null;
+  // private missionCard: MissionCard | null = null;
   private assignedSprite: string = "wizard"; // Default sprite
 
   constructor() {
@@ -294,11 +300,11 @@ export default class WorldScene extends Scene {
       });
 
       // Initialize mission card
-      this.missionCard = new MissionCard(this);
-      this.missionCard.show();
+      // this.missionCard = new MissionCard(this);
+      // this.missionCard.show();
 
       // Add mission card
-      const missionCard = this.add.container(20, 20);
+      // const missionCard = this.add.container(20, 20);
 
       // Background
       const cardBg = this.add.rectangle(0, 0, 300, 100, 0x000000, 0.7);
@@ -331,8 +337,8 @@ export default class WorldScene extends Scene {
       missionObjective.setOrigin(0, 0.5);
 
       // Add all elements to the container
-      missionCard.add([cardBg, missionTitle, missionObjective]);
-      missionCard.setDepth(1000); // Ensure it's above other elements
+      // missionCard.add([cardBg, missionTitle, missionObjective]);
+      // missionCard.setDepth(1000); // Ensure it's above other elements
 
       // Add a subtle pulsing effect to the border
       this.tweens.add({

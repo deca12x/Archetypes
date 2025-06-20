@@ -70,6 +70,9 @@ const GameComponent = () => {
 
       console.log("Phaser game created successfully");
 
+      // Expose the game instance to the window object for the ChatWindow component
+      (window as any).__PHASER_GAME__ = newGame;
+
       setGame(newGame);
 
       // Get reference to the WorldScene once it's created

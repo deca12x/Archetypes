@@ -17,6 +17,7 @@ import { useSocket } from "../../lib/hooks/useSocket";
 import { IntroScene } from "./scenes/IntroScene";
 import { PauseScene } from "./scenes/PauseScene";
 import RoomCodeDisplay from "../../components/RoomCodeDisplay";
+import { GameScene } from "../../lib/game/types/scenes";
 
 const GameComponent = () => {
   const [game, setGame] = useState<PhaserGame>();
@@ -113,8 +114,20 @@ const GameComponent = () => {
 
   // Handle chat message sending
   const handleSendMessage = (message: string) => {
-    if (worldScene) {
-      worldScene.sendChatMessage(message);
+    if (!game) return;
+
+    // Get the current active scene
+    const activeScenes = game.scene.getScenes(true);
+    const gameScenes = activeScenes.filter((scene) =>
+      ["WorldScene", "scene3", "scene4"].includes(scene.scene.key)
+    );
+
+    if (gameScenes.length > 0) {
+      // Cast to GameScene type
+      const currentScene = gameScenes[0] as unknown as GameScene;
+      if (currentScene.sendChatMessage) {
+        currentScene.sendChatMessage(message);
+      }
     }
   };
 

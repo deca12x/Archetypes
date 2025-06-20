@@ -28,6 +28,7 @@ import { useUIStore } from "../../../lib/game/stores/ui";
 import { useSocket } from "../../../lib/hooks/useSocket";
 import { MissionCard } from "../components/MissionCard";
 import { Direction } from "grid-engine";
+import { chatService } from "../../../lib/game/utils/chatService";
 
 // Add a helper function to convert string literals to Direction type
 function toDirection(dir: string): Direction {
@@ -182,6 +183,14 @@ export default class WorldScene extends Scene {
     if (this.socket) {
       // Set up socket event handlers
       this.setupSocketHandlers();
+
+      // Initialize the chat service
+      chatService.initialize(
+        this.socket,
+        this.socket.id || "local-player",
+        this.username,
+        this.roomId || ""
+      );
     }
   }
 
@@ -447,17 +456,34 @@ export default class WorldScene extends Scene {
       .subscribe(({ charId, direction }: MovementEvent) => {
         console.log("GridEngine: Movement started", { charId, direction });
         if (charId === "player" && this.player) {
-          const position = this.gridEngine?.getPosition("player");
-          if (position) {
-            this.updatePlayerMovement(position.x, position.y, direction);
-            this.updateSpritePosition(position);
+          const currentPosition = this.gridEngine?.getPosition("player");
+          if (currentPosition) {
+            // Calculate the target position based on the direction
+            const targetPosition = {
+              x:
+                currentPosition.x +
+                (direction === Direction.LEFT
+                  ? -1
+                  : direction === Direction.RIGHT
+                  ? 1
+                  : 0),
+              y:
+                currentPosition.y +
+                (direction === Direction.UP
+                  ? -1
+                  : direction === Direction.DOWN
+                  ? 1
+                  : 0),
+            };
+
+            this.updateSpritePosition(currentPosition);
             this.playWalkingAnimation(direction);
 
-            // Send position update to other players
+            // Send target position update to other players
             if (this.socket && this.roomId) {
               this.socket.emit("playerPosition", {
                 playerId: this.socket.id,
-                position: position,
+                position: targetPosition, // Send the target position instead of current
                 facingDirection: direction,
               });
             }
@@ -473,18 +499,9 @@ export default class WorldScene extends Scene {
         if (charId === "player" && this.player) {
           const position = this.gridEngine?.getPosition("player");
           if (position) {
-            this.updatePlayerMovement(position.x, position.y, direction);
             this.updateSpritePosition(position);
             this.playIdleAnimation(direction);
-
-            // Send final position update to other players
-            if (this.socket && this.roomId) {
-              this.socket.emit("playerPosition", {
-                playerId: this.socket.id,
-                position: position,
-                facingDirection: direction,
-              });
-            }
+            // No position update sent here
           }
         }
       });
@@ -497,7 +514,6 @@ export default class WorldScene extends Scene {
         if (charId === "player" && this.player) {
           const position = this.gridEngine?.getPosition("player");
           if (position) {
-            this.updatePlayerMovement(position.x, position.y, direction);
             this.updateSpritePosition(position);
             this.playWalkingAnimation(direction);
           }
@@ -1066,10 +1082,15 @@ export default class WorldScene extends Scene {
 
     this.socket.on(
       "chatMessage",
-      (data: { playerId: string; message: string }) => {
+      (data: {
+        playerId: string;
+        username: string;
+        message: string;
+        groupId?: string;
+      }) => {
         if (data.playerId !== this.playerId) {
-          // Handle incoming chat message
-          console.log(`Chat from ${data.playerId}: ${data.message}`);
+          // Handle incoming chat message using the chat service
+          chatService.handleIncomingMessage(data);
         }
       }
     );
@@ -1087,23 +1108,6 @@ export default class WorldScene extends Scene {
             data.playerId,
             data.position,
             data.facingDirection
-          );
-        }
-      }
-    );
-
-    this.socket.on(
-      "playerMoved",
-      (data: {
-        playerId: string;
-        movement: { x: number; y: number; direction: string };
-      }) => {
-        console.log("Received player movement:", data);
-        if (data.playerId !== this.playerId) {
-          this.handlePlayerPosition(
-            data.playerId,
-            data.movement,
-            data.movement.direction
           );
         }
       }
@@ -1293,16 +1297,6 @@ export default class WorldScene extends Scene {
     }
   }
 
-  // Update movement method to emit position changes
-  updatePlayerMovement(x: number, y: number, direction: Direction) {
-    if (this.socket && this.roomId) {
-      this.socket.emit("playerMovement", {
-        roomId: this.roomId,
-        movement: { x, y, direction },
-      });
-    }
-  }
-
   checkAdjacentPlayers() {
     if (!this.socket || !this.roomId || !this.playerId || !this.gridEngine)
       return;
@@ -1310,9 +1304,8 @@ export default class WorldScene extends Scene {
     const playerPosition = this.gridEngine.getPosition("player");
     if (!playerPosition) return;
 
-    // Store previous adjacent players for comparison
-    const previousAdjacentPlayers = new Set(this.adjacentPlayers);
-    this.adjacentPlayers.clear();
+    // Clear the set of adjacent players
+    const adjacentPlayers = new Set<string>();
 
     // Check each remote player
     for (const [playerId, remotePlayer] of this.remotePlayers.entries()) {
@@ -1328,60 +1321,17 @@ export default class WorldScene extends Scene {
 
       if (dx + dy <= 1) {
         // This player is adjacent, add to our set
-        this.adjacentPlayers.add(playerId);
+        adjacentPlayers.add(playerId);
       }
     }
 
-    // If adjacency changed, update chat group
-    let adjacencyChanged = false;
-
-    // Check if any player was added
-    for (const playerId of this.adjacentPlayers) {
-      if (!previousAdjacentPlayers.has(playerId)) {
-        adjacencyChanged = true;
-        break;
-      }
-    }
-
-    // Check if any player was removed
-    if (!adjacencyChanged) {
-      for (const playerId of previousAdjacentPlayers) {
-        if (!this.adjacentPlayers.has(playerId)) {
-          adjacencyChanged = true;
-          break;
-        }
-      }
-    }
-
-    if (adjacencyChanged) {
-      // Create new chat group ID from sorted player IDs
-      const playerIds = [
-        this.playerId,
-        ...Array.from(this.adjacentPlayers),
-      ].sort();
-      this.chatGroupId = playerIds.join("-");
-    }
+    // Update the chat service with the new adjacent players
+    chatService.updateAdjacentPlayers(adjacentPlayers);
   }
 
   sendChatMessage(message: string) {
-    if (!this.socket || !this.roomId) return;
-
-    // Check if we're in proximity chat with other players
-    const inProximityChat = this.chatGroupId !== null;
-
-    // Only send to server if in proximity chat
-    if (inProximityChat) {
-      console.log("Sending chat message to group:", this.chatGroupId);
-      this.socket.emit("chatMessage", {
-        roomId: this.roomId,
-        groupId: this.chatGroupId,
-        message,
-      });
-    } else {
-      console.log("Message is self-only (no proximity chat active)");
-      // If proximity chat is not active, we could automatically route to Nebula here
-      // But that's handled in the ChatWindow component instead
-    }
+    // Use the chat service to send the message
+    chatService.sendMessage(message);
   }
 
   private initializeGridEngine(): void {

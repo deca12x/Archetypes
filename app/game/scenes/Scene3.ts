@@ -2,6 +2,7 @@ import { Scene, GameObjects, Tilemaps } from "phaser";
 import { Socket } from "socket.io-client";
 import GridEngine from "grid-engine";
 import { MissionCard } from "../components/MissionCard";
+import { chatService } from "../../../lib/game/utils/chatService";
 
 // Using string literal types instead of importing Direction from grid-engine
 type Direction = "up" | "down" | "left" | "right";
@@ -27,10 +28,18 @@ interface GridEngineConfig {
 
 // Define GridEngine interface
 interface GridEngineInterface {
-  movementStarted(): { subscribe: (callback: (data: MovementEvent) => void) => void };
-  movementStopped(): { subscribe: (callback: (data: MovementEvent) => void) => void };
-  directionChanged(): { subscribe: (callback: (data: MovementEvent) => void) => void };
-  positionChangeFinished(): { subscribe: (callback: (data: any) => void) => void };
+  movementStarted(): {
+    subscribe: (callback: (data: MovementEvent) => void) => void;
+  };
+  movementStopped(): {
+    subscribe: (callback: (data: MovementEvent) => void) => void;
+  };
+  directionChanged(): {
+    subscribe: (callback: (data: MovementEvent) => void) => void;
+  };
+  positionChangeFinished(): {
+    subscribe: (callback: (data: any) => void) => void;
+  };
   getPosition(charId: string): { x: number; y: number };
   getFacingDirection(charId: string): Direction;
   setPosition(charId: string, position: { x: number; y: number }): void;
@@ -65,7 +74,7 @@ export default class Scene3 extends Scene {
   private isNearHead: boolean = false;
   private isNearGate: boolean = false;
   private missionCard: MissionCard | null = null;
-  
+
   // Multiplayer properties
   public username: string = "Player";
   public playerId: string = "";
@@ -84,18 +93,31 @@ export default class Scene3 extends Scene {
   init(data: any) {
     console.log("🎬 Scene3 init called with data:", data);
     // Get multiplayer data from previous scene
-    this.socket = data.socket || (typeof window !== "undefined" ? (window as any).__gameSocket : null);
+    this.socket =
+      data.socket ||
+      (typeof window !== "undefined" ? (window as any).__gameSocket : null);
     this.roomId = data.roomId || "";
     this.playerId = data.playerId || "";
     this.username = data.username || "Player";
-    
-    console.log("🎬 Scene3 init - socket:", this.socket ? "available" : "not available");
+
+    console.log(
+      "🎬 Scene3 init - socket:",
+      this.socket ? "available" : "not available"
+    );
     console.log("🎬 Scene3 init - roomId:", this.roomId);
     console.log("🎬 Scene3 init - playerId:", this.playerId);
     console.log("🎬 Scene3 init - username:", this.username);
-    
+
     if (this.socket) {
       this.setupSocketHandlers();
+
+      // Initialize the chat service
+      chatService.initialize(
+        this.socket,
+        this.playerId,
+        this.username,
+        this.roomId
+      );
     }
   }
 
@@ -103,16 +125,16 @@ export default class Scene3 extends Scene {
     console.log("🎬 Scene3 create method started");
     console.log("🎬 Scene3 create - scene key:", this.scene.key);
     console.log("🎬 Scene3 create - scene manager:", !!this.scene.manager);
-    
+
     // Initialize the tilemap
     this.initializeTilemap();
-    
+
     // Initialize the player
     this.initializePlayer();
-    
+
     // Initialize GridEngine
     this.initializeGridEngine();
-    
+
     // Set up keyboard input
     if (this.input && this.input.keyboard) {
       this.cursors = this.input.keyboard.createCursorKeys();
@@ -129,7 +151,7 @@ export default class Scene3 extends Scene {
       };
       console.log("🎬 Scene3 create - keyboard input set up");
     } else {
-      console.error('🎬 Scene3 create - Input system not available in Scene3');
+      console.error("🎬 Scene3 create - Input system not available in Scene3");
     }
 
     // Continue background music if not already playing
@@ -143,23 +165,28 @@ export default class Scene3 extends Scene {
     // Show the fourth message after a delay
     this.time.delayedCall(2000, () => {
       const message = "Burns like hell.\nHope the coolant holds.";
-      const messageText = this.add.text(this.cameras.main.width / 2, this.cameras.main.height * 0.8, message, {
-        fontSize: '32px',
-        fontFamily: 'Arial',
-        color: '#ffffff',
-        align: 'center',
-        stroke: '#000000',
-        strokeThickness: 4,
-        shadow: {
-          offsetX: 2,
-          offsetY: 2,
-          color: '#000',
-          blur: 2,
-          stroke: true,
-          fill: true
-        },
-        wordWrap: { width: this.cameras.main.width * 0.4 }
-      });
+      const messageText = this.add.text(
+        this.cameras.main.width / 2,
+        this.cameras.main.height * 0.8,
+        message,
+        {
+          fontSize: "32px",
+          fontFamily: "Arial",
+          color: "#ffffff",
+          align: "center",
+          stroke: "#000000",
+          strokeThickness: 4,
+          shadow: {
+            offsetX: 2,
+            offsetY: 2,
+            color: "#000",
+            blur: 2,
+            stroke: true,
+            fill: true,
+          },
+          wordWrap: { width: this.cameras.main.width * 0.4 },
+        }
+      );
       messageText.setOrigin(0.5, 0.5);
       messageText.setDepth(2000);
 
@@ -178,33 +205,38 @@ export default class Scene3 extends Scene {
               duration: 1000,
               onComplete: () => {
                 messageText.destroy();
-              }
+              },
             });
           });
-        }
+        },
       });
     });
 
     // Add head remains text (initially invisible)
     this.headText = this.add.text(0, 0, "The head... it's still warm...", {
-      fontSize: '24px',
-      color: '#ffffff',
-      fontFamily: 'Arial',
-      backgroundColor: '#000000',
-      padding: { x: 10, y: 5 }
+      fontSize: "24px",
+      color: "#ffffff",
+      fontFamily: "Arial",
+      backgroundColor: "#000000",
+      padding: { x: 10, y: 5 },
     });
     this.headText.setOrigin(0.5);
     this.headText.setDepth(1000);
     this.headText.setAlpha(0);
 
     // Add desert gate text (initially invisible)
-    this.desertGateText = this.add.text(0, 0, "The gate to the desert... where it all began.", {
-      fontSize: '24px',
-      color: '#ffffff',
-      fontFamily: 'Arial',
-      backgroundColor: '#000000',
-      padding: { x: 10, y: 5 }
-    });
+    this.desertGateText = this.add.text(
+      0,
+      0,
+      "The gate to the desert... where it all began.",
+      {
+        fontSize: "24px",
+        color: "#ffffff",
+        fontFamily: "Arial",
+        backgroundColor: "#000000",
+        padding: { x: 10, y: 5 },
+      }
+    );
     this.desertGateText.setOrigin(0.5);
     this.desertGateText.setDepth(1000);
     this.desertGateText.setAlpha(0);
@@ -221,24 +253,27 @@ export default class Scene3 extends Scene {
       this.headRemains.setScale(0.5);
       this.headRemains.setDepth(10);
     }
-    
+
     // Notify server that we've entered Scene3
     if (this.socket && this.roomId) {
       console.log("🎬 Notifying server that we entered Scene3");
       this.socket.emit("playerEnteredScene", {
         roomId: this.roomId,
         sceneName: "scene3",
-        playerId: this.playerId
+        playerId: this.playerId,
       });
-      
+
       // Also send our current position to all players in the scene
       if (this.player && this.gridEngine) {
         const currentPos = this.gridEngine.getPosition("player");
-        console.log("🎬 Sending our position to all players in Scene3:", currentPos);
+        console.log(
+          "🎬 Sending our position to all players in Scene3:",
+          currentPos
+        );
         this.socket.emit("playerPosition", {
           playerId: this.socket.id,
           position: currentPos,
-          facingDirection: this.gridEngine.getFacingDirection("player")
+          facingDirection: this.gridEngine.getFacingDirection("player"),
         });
       }
     }
@@ -246,7 +281,7 @@ export default class Scene3 extends Scene {
 
   update(): void {
     console.log("🎬 Scene3 update called");
-    
+
     if (!this.gridEngineReady) {
       console.log("🎬 Scene3 update: GridEngine not ready");
       return;
@@ -257,6 +292,9 @@ export default class Scene3 extends Scene {
 
     // Check for scene transition (bottom left corner to Scene4)
     this.checkForSceneTransition();
+
+    // Check for adjacent players for chat
+    this.checkAdjacentPlayers();
 
     // Check distance to head remains
     if (this.headRemains && this.player) {
@@ -301,20 +339,24 @@ export default class Scene3 extends Scene {
     console.log("Initializing Scene3 tilemap...");
     try {
       // Create the tilemap
-      this.tilemap = this.make.tilemap({ key: "scene3", tileWidth: 32, tileHeight: 32 });
+      this.tilemap = this.make.tilemap({
+        key: "scene3",
+        tileWidth: 32,
+        tileHeight: 32,
+      });
       const tileset = this.tilemap.addTilesetImage("scene3", "scene3");
       if (!tileset) {
         throw new Error("Failed to load tileset 'scene3' for Scene3");
       }
-      
+
       // Create the ground layer
       this.tilemap.createLayer("ground", tileset);
-      
+
       // Create the collision layer and set collision on all non-empty tiles
       this.collisionLayer = this.tilemap.createLayer("collision", tileset);
       if (this.collisionLayer) {
         this.collisionLayer.setCollisionByExclusion([-1]);
-        
+
         // Add "collides" property to all collision tiles for GridEngine
         this.collisionLayer.forEachTile((tile) => {
           if (tile.index !== -1) {
@@ -324,9 +366,14 @@ export default class Scene3 extends Scene {
       }
 
       // Set world bounds
-      this.cameras.main.setBounds(0, 0, this.tilemap.widthInPixels, this.tilemap.heightInPixels);
+      this.cameras.main.setBounds(
+        0,
+        0,
+        this.tilemap.widthInPixels,
+        this.tilemap.heightInPixels
+      );
       this.cameras.main.setBackgroundColor("#e2a84b");
-      
+
       console.log("Scene3 tilemap initialized successfully");
     } catch (error) {
       console.error("Error in initializeTilemap:", error);
@@ -337,7 +384,7 @@ export default class Scene3 extends Scene {
     console.log("Initializing Scene3 player...");
     try {
       if (!this.tilemap) {
-        console.error('Tilemap not initialized');
+        console.error("Tilemap not initialized");
         return;
       }
 
@@ -351,16 +398,19 @@ export default class Scene3 extends Scene {
       this.player = this.add.sprite(startX, startY, "rogue");
       this.player.setOrigin(0.5, 0.5);
       this.player.setScale(1);
-      
+
       // Set initial idle animation
       this.player.anims.play("rogue_idle_down", true);
-      
+
       // Set up camera to follow player
       this.cameras.main.startFollow(this.player, true);
       this.cameras.main.setFollowOffset(0, 0);
       this.cameras.main.setZoom(1);
-      
-      console.log("Scene3 player sprite created at:", { x: this.player.x, y: this.player.y });
+
+      console.log("Scene3 player sprite created at:", {
+        x: this.player.x,
+        y: this.player.y,
+      });
     } catch (error) {
       console.error("Error in initializePlayer:", error);
     }
@@ -397,23 +447,24 @@ export default class Scene3 extends Scene {
       try {
         const manualGridEngine = new GridEngine(this);
         console.log("Scene3 Manual GridEngine created:", manualGridEngine);
-        
+
         if (this.tilemap) {
-          manualGridEngine.create(this.tilemap, gridEngineConfig);
+          // Cast the config to any to avoid TypeScript errors with the Direction type
+          manualGridEngine.create(this.tilemap, gridEngineConfig as any);
           console.log("Scene3 Manual GridEngine initialized successfully");
-          
+
           this.gridEngine = manualGridEngine as unknown as GridEngineInterface;
           this.gridEngineReady = true;
-          
+
           // Reset any stuck movement state
           this.resetGridEngineMovement();
-          
+
           // Update sprite position to match GridEngine's initial position
           const initialPosition = this.gridEngine.getPosition("player");
           if (initialPosition) {
             this.updateSpritePosition(initialPosition);
           }
-          
+
           this.setupGridEngineListeners();
         } else {
           console.error("Tilemap is null, cannot initialize manual GridEngine");
@@ -421,7 +472,6 @@ export default class Scene3 extends Scene {
       } catch (manualError) {
         console.error("Failed to create manual GridEngine:", manualError);
       }
-      
     } catch (error) {
       console.error("Error initializing GridEngine:", error);
     }
@@ -429,25 +479,24 @@ export default class Scene3 extends Scene {
 
   private resetGridEngineMovement(): void {
     if (!this.gridEngine) return;
-    
+
     console.log("🎬 Resetting GridEngine movement state...");
-    
+
     // Force stop any ongoing movement
     try {
       // Set the player to a known good position
       const currentPos = this.gridEngine.getPosition("player");
       console.log("🎬 Current GridEngine position:", currentPos);
-      
+
       // Force the position to be valid
       const validX = Math.max(0, Math.min(currentPos.x, 59));
       const validY = Math.max(0, Math.min(currentPos.y, 59));
-      
+
       this.gridEngine.setPosition("player", { x: validX, y: validY });
       console.log("🎬 Set GridEngine position to:", { x: validX, y: validY });
-      
+
       // Update sprite position
       this.updateSpritePosition({ x: validX, y: validY });
-      
     } catch (error) {
       console.error("🎬 Error resetting GridEngine movement:", error);
     }
@@ -455,26 +504,36 @@ export default class Scene3 extends Scene {
 
   private setupGridEngineListeners() {
     if (!this.gridEngine) return;
-    
+
     console.log("🎬 Setting up GridEngine listeners...");
-    
+
     // Listen for movement started
     this.gridEngine
       .movementStarted()
       .subscribe(({ charId, direction }: MovementEvent) => {
         console.log("🎬 GridEngine: Movement started", { charId, direction });
         if (charId === "player" && this.player) {
-          const position = this.gridEngine?.getPosition("player");
-          if (position) {
-            this.updateSpritePosition(position);
+          const currentPosition = this.gridEngine?.getPosition("player");
+          if (currentPosition) {
+            // Calculate the target position based on the direction
+            const targetPosition = {
+              x:
+                currentPosition.x +
+                (direction === "left" ? -1 : direction === "right" ? 1 : 0),
+              y:
+                currentPosition.y +
+                (direction === "up" ? -1 : direction === "down" ? 1 : 0),
+            };
+
+            this.updateSpritePosition(currentPosition);
             this.playWalkingAnimation(direction);
-            
-            // Send position update to other players
+
+            // Send target position update to other players
             if (this.socket && this.roomId) {
               this.socket.emit("playerPosition", {
                 playerId: this.socket.id,
-                position: position,
-                facingDirection: direction
+                position: targetPosition, // Send the target position instead of current
+                facingDirection: direction,
               });
             }
           }
@@ -491,15 +550,7 @@ export default class Scene3 extends Scene {
           if (position) {
             this.updateSpritePosition(position);
             this.playIdleAnimation(direction);
-            
-            // Send final position update to other players
-            if (this.socket && this.roomId) {
-              this.socket.emit("playerPosition", {
-                playerId: this.socket.id,
-                position: position,
-                facingDirection: direction
-              });
-            }
+            // No position update sent here
           }
         }
       });
@@ -519,55 +570,62 @@ export default class Scene3 extends Scene {
       });
 
     // Listen for position change finished
-    this.gridEngine
-      .positionChangeFinished()
-      .subscribe((data: any) => {
-        console.log("🎬 GridEngine: Position change finished", data);
-        if (data.charId === "player" && this.player) {
-          const position = this.gridEngine?.getPosition("player");
-          if (position) {
-            this.updateSpritePosition(position);
-            this.playIdleAnimation(data.direction || "down");
-          }
+    this.gridEngine.positionChangeFinished().subscribe((data: any) => {
+      console.log("🎬 GridEngine: Position change finished", data);
+      if (data.charId === "player" && this.player) {
+        const position = this.gridEngine?.getPosition("player");
+        if (position) {
+          this.updateSpritePosition(position);
+          this.playIdleAnimation(data.direction || "down");
         }
-      });
-      
+      }
+    });
+
     console.log("🎬 GridEngine listeners set up successfully");
   }
 
   private updateSpritePosition(position: { x: number; y: number }) {
     if (!this.player) {
-      console.warn("🎬 updateSpritePosition: Player is undefined, skipping position update");
+      console.warn(
+        "🎬 updateSpritePosition: Player is undefined, skipping position update"
+      );
       return;
     }
-    
+
     const tileSize = 32; // Correct tile size for this map
     const pixelX = position.x * tileSize + tileSize / 2;
     const pixelY = position.y * tileSize + tileSize / 2;
-    
+
     console.log("🎬 Updating sprite position:", {
       tilePosition: position,
       pixelPosition: { x: pixelX, y: pixelY },
-      currentSpritePosition: { x: this.player.x, y: this.player.y }
+      currentSpritePosition: { x: this.player.x, y: this.player.y },
     });
-    
+
     this.player.setPosition(pixelX, pixelY);
-    console.log("🎬 Sprite position after setPosition:", { x: this.player.x, y: this.player.y });
+    console.log("🎬 Sprite position after setPosition:", {
+      x: this.player.x,
+      y: this.player.y,
+    });
   }
 
   private playWalkingAnimation(direction: Direction) {
     if (!this.player) {
-      console.warn("🎬 playWalkingAnimation: Player is undefined, skipping animation");
+      console.warn(
+        "🎬 playWalkingAnimation: Player is undefined, skipping animation"
+      );
       return;
     }
-    
+
     if (!this.player.anims) {
-      console.warn("🎬 playWalkingAnimation: Player animations are undefined, skipping animation");
+      console.warn(
+        "🎬 playWalkingAnimation: Player animations are undefined, skipping animation"
+      );
       return;
     }
-    
+
     let animationKey = "rogue_walk_down"; // default
-    
+
     switch (direction) {
       case "up":
         animationKey = "rogue_walk_up";
@@ -582,7 +640,7 @@ export default class Scene3 extends Scene {
         animationKey = "rogue_walk_right";
         break;
     }
-    
+
     console.log("🎬 Playing walking animation:", animationKey);
     try {
       this.player.anims.play(animationKey, true);
@@ -593,17 +651,21 @@ export default class Scene3 extends Scene {
 
   private playIdleAnimation(direction: Direction) {
     if (!this.player) {
-      console.warn("🎬 playIdleAnimation: Player is undefined, skipping animation");
+      console.warn(
+        "🎬 playIdleAnimation: Player is undefined, skipping animation"
+      );
       return;
     }
-    
+
     if (!this.player.anims) {
-      console.warn("🎬 playIdleAnimation: Player animations are undefined, skipping animation");
+      console.warn(
+        "🎬 playIdleAnimation: Player animations are undefined, skipping animation"
+      );
       return;
     }
-    
+
     let animationKey = "rogue_idle_down"; // default
-    
+
     switch (direction) {
       case "up":
         animationKey = "rogue_idle_up";
@@ -618,7 +680,7 @@ export default class Scene3 extends Scene {
         animationKey = "rogue_idle_right";
         break;
     }
-    
+
     console.log("🎬 Playing idle animation:", animationKey);
     try {
       this.player.anims.play(animationKey, true);
@@ -628,12 +690,17 @@ export default class Scene3 extends Scene {
   }
 
   private handleMovement(): void {
-    if (!this.gridEngine || !this.gridEngineReady || !this.cursors || !this.wasdKeys) {
+    if (
+      !this.gridEngine ||
+      !this.gridEngineReady ||
+      !this.cursors ||
+      !this.wasdKeys
+    ) {
       console.log("🎬 Movement blocked - missing dependencies:", {
         gridEngine: !!this.gridEngine,
         gridEngineReady: this.gridEngineReady,
         cursors: !!this.cursors,
-        wasdKeys: !!this.wasdKeys
+        wasdKeys: !!this.wasdKeys,
       });
       return;
     }
@@ -642,13 +709,15 @@ export default class Scene3 extends Scene {
     if (this.gridEngine.isMoving("player")) {
       // Add debugging to see what's happening with the movement state
       const playerPosition = this.gridEngine.getPosition("player");
-      const spritePosition = this.player ? { x: this.player.x, y: this.player.y } : null;
+      const spritePosition = this.player
+        ? { x: this.player.x, y: this.player.y }
+        : null;
       console.log("🎬 Player is already moving, skipping input. State:", {
         gridEnginePosition: playerPosition,
         spritePosition: spritePosition,
         isMoving: this.gridEngine.isMoving("player"),
         spriteVisible: this.player?.visible,
-        spriteActive: this.player?.active
+        spriteActive: this.player?.active,
       });
       return;
     }
@@ -674,57 +743,95 @@ export default class Scene3 extends Scene {
     if (direction) {
       console.log("🎬 Attempting to move player:", direction);
       const beforePosition = this.gridEngine.getPosition("player");
-      const beforeSpritePosition = this.player ? { x: this.player.x, y: this.player.y } : null;
-      console.log("🎬 Position before move:", beforePosition, "Sprite position:", beforeSpritePosition);
-      
+      const beforeSpritePosition = this.player
+        ? { x: this.player.x, y: this.player.y }
+        : null;
+      console.log(
+        "🎬 Position before move:",
+        beforePosition,
+        "Sprite position:",
+        beforeSpritePosition
+      );
+
       // Check if the target position would be valid
-      const targetX = beforePosition.x + (direction === "left" ? -1 : direction === "right" ? 1 : 0);
-      const targetY = beforePosition.y + (direction === "up" ? -1 : direction === "down" ? 1 : 0);
+      const targetX =
+        beforePosition.x +
+        (direction === "left" ? -1 : direction === "right" ? 1 : 0);
+      const targetY =
+        beforePosition.y +
+        (direction === "up" ? -1 : direction === "down" ? 1 : 0);
       console.log("🎬 Target position:", { x: targetX, y: targetY });
-      
+
       // Check if target position is within map bounds
       if (targetX < 0 || targetX >= 60 || targetY < 0 || targetY >= 60) {
-        console.log("🎬 Movement blocked: Target position is outside map bounds");
+        console.log(
+          "🎬 Movement blocked: Target position is outside map bounds"
+        );
         return;
       }
-      
+
       // Check if target position has collision
       if (this.collisionLayer) {
         const targetTile = this.collisionLayer.getTileAt(targetX, targetY);
         if (targetTile && targetTile.index !== -1) {
-          console.log("🎬 Movement blocked: Target position has collision tile", targetTile.index);
+          console.log(
+            "🎬 Movement blocked: Target position has collision tile",
+            targetTile.index
+          );
           return;
         }
       }
-      
+
       console.log("🎬 Target position is walkable, attempting move");
       this.gridEngine.move("player", direction);
       console.log("🎬 Move command sent to GridEngine");
-      
+
       // Check position after move
       setTimeout(() => {
         const afterPosition = this.gridEngine?.getPosition("player");
-        const afterSpritePosition = this.player ? { x: this.player.x, y: this.player.y } : null;
+        const afterSpritePosition = this.player
+          ? { x: this.player.x, y: this.player.y }
+          : null;
         const isStillMoving = this.gridEngine?.isMoving("player");
-        console.log("🎬 Position after move:", afterPosition, "Sprite position:", afterSpritePosition, "Still moving:", isStillMoving);
-        
+        console.log(
+          "🎬 Position after move:",
+          afterPosition,
+          "Sprite position:",
+          afterSpritePosition,
+          "Still moving:",
+          isStillMoving
+        );
+
         // If the sprite moved but GridEngine thinks it's still moving, try to force completion
         if (isStillMoving && beforeSpritePosition && afterSpritePosition) {
-          const spriteMoved = beforeSpritePosition.x !== afterSpritePosition.x || beforeSpritePosition.y !== afterSpritePosition.y;
+          const spriteMoved =
+            beforeSpritePosition.x !== afterSpritePosition.x ||
+            beforeSpritePosition.y !== afterSpritePosition.y;
           console.log("🎬 Sprite moved:", spriteMoved);
-          
+
           if (spriteMoved) {
-            console.log("🎬 Sprite moved but GridEngine still thinks it's moving - this might be a bug");
+            console.log(
+              "🎬 Sprite moved but GridEngine still thinks it's moving - this might be a bug"
+            );
           } else {
             // If sprite didn't move and GridEngine is stuck, try to force completion
-            console.log("🎬 GridEngine is stuck, trying to force movement completion...");
-            
+            console.log(
+              "🎬 GridEngine is stuck, trying to force movement completion..."
+            );
+
             // Try to manually set the target position
             if (this.gridEngine && direction) {
-              const targetX = beforePosition.x + (direction === "left" ? -1 : direction === "right" ? 1 : 0);
-              const targetY = beforePosition.y + (direction === "up" ? -1 : direction === "down" ? 1 : 0);
-              
-              console.log("🎬 Forcing GridEngine to target position:", { x: targetX, y: targetY });
+              const targetX =
+                beforePosition.x +
+                (direction === "left" ? -1 : direction === "right" ? 1 : 0);
+              const targetY =
+                beforePosition.y +
+                (direction === "up" ? -1 : direction === "down" ? 1 : 0);
+
+              console.log("🎬 Forcing GridEngine to target position:", {
+                x: targetX,
+                y: targetY,
+              });
               this.gridEngine.setPosition("player", { x: targetX, y: targetY });
               this.updateSpritePosition({ x: targetX, y: targetY });
             }
@@ -742,14 +849,20 @@ export default class Scene3 extends Scene {
     const minY = 0;
 
     // Top border: transition to scene4
-    if (playerPosition.x === 0 && playerPosition.y <= minY && !this.isTransitioning) {
-      console.log("Player reached top border, triggering scene transition to scene4");
+    if (
+      playerPosition.x === 0 &&
+      playerPosition.y <= minY &&
+      !this.isTransitioning
+    ) {
+      console.log(
+        "Player reached top border, triggering scene transition to scene4"
+      );
       this.isTransitioning = true;
       if (this.socket && this.roomId) {
         this.socket.emit("sceneTransition", {
           roomId: this.roomId,
           sceneName: "scene4",
-          playerId: this.socket.id
+          playerId: this.socket.id,
         });
       }
       this.startSceneTransition("scene4");
@@ -758,13 +871,15 @@ export default class Scene3 extends Scene {
 
     // Bottom border: transition to WorldScene
     if (playerPosition.y >= maxY && !this.isTransitioning) {
-      console.log("Player reached bottom border, triggering transition to WorldScene");
+      console.log(
+        "Player reached bottom border, triggering transition to WorldScene"
+      );
       this.isTransitioning = true;
       if (this.socket && this.roomId) {
         this.socket.emit("sceneTransition", {
           roomId: this.roomId,
           sceneName: "WorldScene",
-          playerId: this.socket.id
+          playerId: this.socket.id,
         });
       }
       this.startSceneTransition("WorldScene");
@@ -774,15 +889,15 @@ export default class Scene3 extends Scene {
 
   private startSceneTransition(sceneName: string) {
     console.log(`Starting transition to ${sceneName}`);
-    
+
     // Pass multiplayer data to the next scene
     const transitionData = {
       socket: this.socket,
       roomId: this.roomId,
       playerId: this.playerId,
-      username: this.username
+      username: this.username,
     };
-    
+
     // Start the next scene with multiplayer data
     this.scene.start(sceneName, transitionData);
   }
@@ -794,123 +909,199 @@ export default class Scene3 extends Scene {
       return;
     }
 
-    this.socket.on("playerPosition", (data: { playerId: string, position: { x: number; y: number }, facingDirection: string }) => {
-      console.log("🎬 Scene3: Received player position:", data);
-      if (data.playerId !== this.playerId) {
-        this.handlePlayerPosition(data.playerId, data.position, data.facingDirection);
+    this.socket.on(
+      "playerPosition",
+      (data: {
+        playerId: string;
+        position: { x: number; y: number };
+        facingDirection: string;
+      }) => {
+        console.log("🎬 Scene3: Received player position:", data);
+        if (data.playerId !== this.playerId) {
+          this.handlePlayerPosition(
+            data.playerId,
+            data.position,
+            data.facingDirection
+          );
+        }
       }
-    });
+    );
 
     // Handle scene change events
-    this.socket.on("playerSceneChanged", (data: { playerId: string; previousScene: string; newScene: string; player: any }) => {
-      console.log("🎬 Player scene changed:", data);
-      
-      if (data.playerId === this.playerId) {
-        // This is our own scene change, ignore
-        return;
+    this.socket.on(
+      "playerSceneChanged",
+      (data: {
+        playerId: string;
+        previousScene: string;
+        newScene: string;
+        player: any;
+      }) => {
+        console.log("🎬 Player scene changed:", data);
+
+        if (data.playerId === this.playerId) {
+          // This is our own scene change, ignore
+          return;
+        }
+
+        if (data.previousScene === "scene3" && data.newScene !== "scene3") {
+          // Player left Scene3, remove them
+          console.log("🎬 Player left Scene3, removing:", data.playerId);
+          this.removeRemotePlayer(data.playerId);
+        } else if (
+          data.previousScene !== "scene3" &&
+          data.newScene === "scene3"
+        ) {
+          // Player entered Scene3, add them
+          console.log("🎬 Player entered Scene3, adding:", data.playerId);
+          this.handlePlayerJoined(data.playerId, data.player);
+        }
       }
-      
-      if (data.previousScene === "scene3" && data.newScene !== "scene3") {
-        // Player left Scene3, remove them
-        console.log("🎬 Player left Scene3, removing:", data.playerId);
-        this.removeRemotePlayer(data.playerId);
-      } else if (data.previousScene !== "scene3" && data.newScene === "scene3") {
-        // Player entered Scene3, add them
-        console.log("🎬 Player entered Scene3, adding:", data.playerId);
-        this.handlePlayerJoined(data.playerId, data.player);
-      }
-    });
+    );
 
     // Handle when we enter a scene and need to see other players
-    this.socket.on("playersInScene", (data: { sceneName: string; players: any[] }) => {
-      console.log("🎬 Players in scene:", data);
-      if (data.sceneName === "scene3") {
-        // Add all players who are already in Scene3
-        data.players.forEach((player) => {
-          this.handlePlayerJoined(player.id, player);
-        });
+    this.socket.on(
+      "playersInScene",
+      (data: { sceneName: string; players: any[] }) => {
+        console.log("🎬 Players in scene:", data);
+        if (data.sceneName === "scene3") {
+          // Add all players who are already in Scene3
+          data.players.forEach((player) => {
+            this.handlePlayerJoined(player.id, player);
+          });
+        }
       }
-    });
+    );
 
     // Handle when another player enters our scene
-    this.socket.on("playerEnteredScene", (data: { sceneName: string; player: any }) => {
-      console.log("🎬 Player entered scene:", data);
-      if (data.sceneName === "scene3") {
-        this.handlePlayerJoined(data.player.id, data.player);
+    this.socket.on(
+      "playerEnteredScene",
+      (data: { sceneName: string; player: any }) => {
+        console.log("🎬 Player entered scene:", data);
+        if (data.sceneName === "scene3") {
+          this.handlePlayerJoined(data.player.id, data.player);
+        }
       }
-    });
+    );
 
-    // Remove automatic scene transition following - players should transition independently
-    // this.socket.on("sceneTransition", (data: { roomId: string, sceneName: string, playerId: string }) => {
-    //   console.log("Scene3: Received scene transition request:", data);
-    //   if (data.playerId !== this.playerId && data.roomId === this.roomId) {
-    //     console.log("Another player triggered scene transition, following...");
-    //     this.startSceneTransition(data.sceneName);
-    //   }
-    // });
+    // Add chat message handler
+    this.socket.on(
+      "chatMessage",
+      (data: {
+        playerId: string;
+        username: string;
+        message: string;
+        groupId?: string;
+      }) => {
+        if (data.playerId !== this.playerId) {
+          // Handle incoming chat message using the chat service
+          chatService.handleIncomingMessage(data);
+        }
+      }
+    );
   }
 
-  handlePlayerPosition(playerId: string, position: { x: number; y: number }, facingDirection: string) {
-    console.log("🎬 Scene3: Received position from player:", playerId, position, facingDirection);
-    
+  handlePlayerPosition(
+    playerId: string,
+    position: { x: number; y: number },
+    facingDirection: string
+  ) {
+    console.log(
+      "🎬 Scene3: Received position from player:",
+      playerId,
+      position,
+      facingDirection
+    );
+
     const remoteCharId = `remote_${playerId}`;
     const remotePlayer = this.remotePlayers.get(playerId);
-    
+
     // If we don't have the remote player yet, create them
     if (!remotePlayer) {
-      console.log("🎬 Scene3: Remote player not found, creating them:", playerId);
-      this.handlePlayerJoined(playerId, { username: `Player${playerId.slice(-4)}` });
+      console.log(
+        "🎬 Scene3: Remote player not found, creating them:",
+        playerId
+      );
+      this.handlePlayerJoined(playerId, {
+        username: `Player${playerId.slice(-4)}`,
+      });
       // Wait a frame for the player to be created, then update position
       this.time.delayedCall(100, () => {
         this.handlePlayerPosition(playerId, position, facingDirection);
       });
       return;
     }
-    
+
     if (this.gridEngine && this.gridEngine.hasCharacter(remoteCharId)) {
       // Validate position is within reasonable bounds
-      if (position.x < 0 || position.y < 0 || position.x > 50 || position.y > 50) {
-        console.warn("🎬 Scene3: Invalid position received:", position, "for player:", playerId);
+      if (
+        position.x < 0 ||
+        position.y < 0 ||
+        position.x > 50 ||
+        position.y > 50
+      ) {
+        console.warn(
+          "🎬 Scene3: Invalid position received:",
+          position,
+          "for player:",
+          playerId
+        );
         return;
       }
-      
+
       // Update position in GridEngine
       this.gridEngine.setPosition(remoteCharId, position);
-      
+
       // Calculate world position from tile position with precise centering
       const worldX = Math.round(position.x * 32 + 16);
       const worldY = Math.round(position.y * 32 + 16);
       remotePlayer.setPosition(worldX, worldY);
-      
+
       // Update facing direction and animation
       this.gridEngine.turnTowards(remoteCharId, facingDirection as Direction);
-      this.updateRemotePlayerAnimation(remoteCharId, facingDirection as Direction);
-      
-      console.log("🎬 Scene3: Updated remote player position:", remoteCharId, position, { x: worldX, y: worldY });
+      this.updateRemotePlayerAnimation(
+        remoteCharId,
+        facingDirection as Direction
+      );
+
+      console.log(
+        "🎬 Scene3: Updated remote player position:",
+        remoteCharId,
+        position,
+        { x: worldX, y: worldY }
+      );
     } else {
-      console.warn("🎬 Scene3: GridEngine or remote character not found for player:", playerId);
+      console.warn(
+        "🎬 Scene3: GridEngine or remote character not found for player:",
+        playerId
+      );
     }
   }
-  
+
   updateRemotePlayerAnimation(charId: string, direction: Direction) {
     const remotePlayer = this.remotePlayers.get(charId.replace("remote_", ""));
     if (!remotePlayer) {
-      console.warn("🎬 updateRemotePlayerAnimation: Remote player not found for charId:", charId);
+      console.warn(
+        "🎬 updateRemotePlayerAnimation: Remote player not found for charId:",
+        charId
+      );
       return;
     }
-    
+
     if (!remotePlayer.anims) {
-      console.warn("🎬 updateRemotePlayerAnimation: Remote player has no animations:", charId);
+      console.warn(
+        "🎬 updateRemotePlayerAnimation: Remote player has no animations:",
+        charId
+      );
       return;
     }
-    
+
     const animMap = {
       up: "rogue_idle_up",
-      down: "rogue_idle_down", 
+      down: "rogue_idle_down",
       left: "rogue_idle_left",
-      right: "rogue_idle_right"
+      right: "rogue_idle_right",
     };
-    
+
     const animName = animMap[direction];
     if (animName) {
       try {
@@ -923,7 +1114,7 @@ export default class Scene3 extends Scene {
 
   handlePlayerJoined(playerId: string, playerData: { username: string }) {
     console.log("🎬 Player joined:", playerId, playerData);
-    
+
     // Get our current position to set as initial position for the new player
     let initialPosition = { x: 5, y: 5 }; // Default
     if (this.player && this.gridEngine) {
@@ -932,10 +1123,10 @@ export default class Scene3 extends Scene {
         initialPosition = currentPos;
       }
     }
-    
+
     // Add remote player with our current position as initial
     this.addRemotePlayer(playerId, playerData, initialPosition);
-    
+
     // Send our current position to the new player immediately
     if (this.player && this.gridEngine) {
       const currentPos = this.gridEngine.getPosition("player");
@@ -943,53 +1134,69 @@ export default class Scene3 extends Scene {
       this.socket?.emit("playerPosition", {
         playerId: this.socket.id,
         position: currentPos,
-        facingDirection: this.gridEngine.getFacingDirection("player")
+        facingDirection: this.gridEngine.getFacingDirection("player"),
       });
     }
   }
 
-  addRemotePlayer(playerId: string, playerData: { username: string }, initialPosition?: { x: number; y: number }) {
+  addRemotePlayer(
+    playerId: string,
+    playerData: { username: string },
+    initialPosition?: { x: number; y: number }
+  ) {
     if (!this.player || !this.gridEngine) return;
-    
+
     // Check if player already exists
     if (this.remotePlayers.has(playerId)) {
       console.log("🎬 Player already exists, skipping creation:", playerId);
       return;
     }
-    
-    console.log("🎬 Adding remote player:", playerId, playerData, "initial position:", initialPosition);
-    
+
+    console.log(
+      "🎬 Adding remote player:",
+      playerId,
+      playerData,
+      "initial position:",
+      initialPosition
+    );
+
     // Use provided position or default to player's position
     const startPos = initialPosition || { x: 5, y: 5 };
-    
+
     // Validate position
-    if (startPos.x < 0 || startPos.y < 0 || startPos.x > 50 || startPos.y > 50) {
+    if (
+      startPos.x < 0 ||
+      startPos.y < 0 ||
+      startPos.x > 50 ||
+      startPos.y > 50
+    ) {
       console.warn("🎬 Invalid initial position:", startPos, "using default");
       startPos.x = 5;
       startPos.y = 5;
     }
-    
+
     const worldX = Math.round(startPos.x * 32 + 16);
     const worldY = Math.round(startPos.y * 32 + 16);
-    
+
     // Create remote player sprite
-    const remotePlayer = this.add.sprite(
-      worldX,
-      worldY,
-      "rogue"
-    );
+    const remotePlayer = this.add.sprite(worldX, worldY, "rogue");
     remotePlayer.setScale(1);
     remotePlayer.setOrigin(0.5, 0.5);
-    
+
     // Set initial idle animation
     remotePlayer.anims.play("rogue_idle_down", true);
-    
+
     this.remotePlayers.set(playerId, remotePlayer);
-    
+
     // Add remote player to GridEngine with a unique character ID
     const remoteCharId = `remote_${playerId}`;
     if (!this.gridEngine.hasCharacter(remoteCharId)) {
-      console.log("🎬 Adding remote player to GridEngine:", remoteCharId, "at position:", startPos);
+      console.log(
+        "🎬 Adding remote player to GridEngine:",
+        remoteCharId,
+        "at position:",
+        startPos
+      );
       this.gridEngine.addCharacter({
         id: remoteCharId,
         sprite: remotePlayer,
@@ -998,13 +1205,16 @@ export default class Scene3 extends Scene {
         speed: 4,
       });
     } else {
-      console.log("🎬 Remote player already exists in GridEngine:", remoteCharId);
+      console.log(
+        "🎬 Remote player already exists in GridEngine:",
+        remoteCharId
+      );
     }
   }
 
   removeRemotePlayer(playerId: string) {
     console.log("🎬 Removing remote player:", playerId);
-    
+
     const remotePlayer = this.remotePlayers.get(playerId);
     if (remotePlayer) {
       // Remove from GridEngine first
@@ -1013,11 +1223,11 @@ export default class Scene3 extends Scene {
         console.log("🎬 Removing from GridEngine:", remoteCharId);
         this.gridEngine.removeCharacter(remoteCharId);
       }
-      
+
       // Destroy the sprite
       remotePlayer.destroy();
       this.remotePlayers.delete(playerId);
-      
+
       console.log("🎬 Remote player removed successfully:", playerId);
     } else {
       console.warn("🎬 Remote player not found for removal:", playerId);
@@ -1043,10 +1253,47 @@ export default class Scene3 extends Scene {
       this.desertGateText.setAlpha(1);
     }
   }
-  
+
   private hideDesertGateText() {
     if (this.desertGateText) {
       this.desertGateText.setAlpha(0);
     }
   }
-} 
+
+  private checkAdjacentPlayers() {
+    if (!this.socket || !this.roomId || !this.playerId || !this.gridEngine)
+      return;
+
+    const playerPosition = this.gridEngine.getPosition("player");
+    if (!playerPosition) return;
+
+    // Clear the set of adjacent players
+    const adjacentPlayers = new Set<string>();
+
+    // Check each remote player
+    for (const [playerId, remotePlayer] of this.remotePlayers.entries()) {
+      const remoteCharId = `remote_${playerId}`;
+      if (!this.gridEngine.hasCharacter(remoteCharId)) continue;
+
+      const remotePosition = this.gridEngine.getPosition(remoteCharId);
+      if (!remotePosition) continue;
+
+      // Calculate distance (Manhattan distance for simplicity)
+      const dx = Math.abs(playerPosition.x - remotePosition.x);
+      const dy = Math.abs(playerPosition.y - remotePosition.y);
+
+      if (dx + dy <= 1) {
+        // This player is adjacent, add to our set
+        adjacentPlayers.add(playerId);
+      }
+    }
+
+    // Update the chat service with the new adjacent players
+    chatService.updateAdjacentPlayers(adjacentPlayers);
+  }
+
+  private sendChatMessage(message: string) {
+    // Use the chat service to send the message
+    chatService.sendMessage(message);
+  }
+}

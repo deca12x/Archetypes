@@ -131,8 +131,10 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
 
     // Handle createOrJoinRoom event (client sends this)
     socket.on("createOrJoinRoom", ({ username }: { username: string }) => {
-      console.log(`createOrJoinRoom called by ${socket.id} with username: ${username}`);
-      
+      console.log(
+        `createOrJoinRoom called by ${socket.id} with username: ${username}`
+      );
+
       // For now, always create a new room
       let roomId = generateRoomCode();
 
@@ -252,44 +254,6 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
       }
     );
 
-    // Handle player movement
-    socket.on(
-      "playerMovement",
-      ({
-        roomId,
-        movement,
-      }: {
-        roomId: string;
-        movement: { x: number; y: number; direction: string };
-      }) => {
-        const room = gameRooms[roomId];
-        if (!room || !room.players[socket.id]) return;
-
-        // Update player position
-        const player = room.players[socket.id];
-        player.x = movement.x;
-        player.y = movement.y;
-        player.direction = movement.direction;
-
-        // Find all players in the same scene
-        const playersInSameScene = Object.keys(room.players).filter((otherPlayerId) => {
-          if (otherPlayerId === socket.id) return false;
-          const otherPlayer = room.players[otherPlayerId];
-          return otherPlayer.currentScene === player.currentScene;
-        });
-
-        if (playersInSameScene.length > 0) {
-          // Broadcast movement to other players in the same scene
-          socket.to(roomId).emit("playerMoved", {
-            playerId: socket.id,
-            movement,
-          });
-          
-          console.log(`Movement update from ${socket.id} in scene ${player.currentScene} sent to ${playersInSameScene.length} players in same scene`);
-        }
-      }
-    );
-
     // Handle player position synchronization
     socket.on(
       "playerPosition",
@@ -318,11 +282,13 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
         if (!senderPlayer) return;
 
         // Find all players in the same scene
-        const playersInSameScene = Object.keys(playerRoom.players).filter((otherPlayerId) => {
-          if (otherPlayerId === playerId) return false;
-          const otherPlayer = playerRoom!.players[otherPlayerId];
-          return otherPlayer.currentScene === senderPlayer.currentScene;
-        });
+        const playersInSameScene = Object.keys(playerRoom.players).filter(
+          (otherPlayerId) => {
+            if (otherPlayerId === playerId) return false;
+            const otherPlayer = playerRoom!.players[otherPlayerId];
+            return otherPlayer.currentScene === senderPlayer.currentScene;
+          }
+        );
 
         if (playersInSameScene.length > 0) {
           // Send position update to all players in the same scene
@@ -331,8 +297,10 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
             position,
             facingDirection,
           });
-          
-          console.log(`Position update from ${playerId} in scene ${senderPlayer.currentScene} sent to ${playersInSameScene.length} players in same scene`);
+
+          console.log(
+            `Position update from ${playerId} in scene ${senderPlayer.currentScene} sent to ${playersInSameScene.length} players in same scene`
+          );
         }
       }
     );
@@ -366,8 +334,8 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
             id: player.id,
             username: player.username,
             sprite: player.sprite,
-            currentScene: player.currentScene
-          }
+            currentScene: player.currentScene,
+          },
         });
 
         // Also emit the original sceneTransition event for backward compatibility
@@ -377,7 +345,9 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
           playerId,
         });
 
-        console.log(`Player ${playerId} moved from ${previousScene} to ${sceneName} in room ${roomId}`);
+        console.log(
+          `Player ${playerId} moved from ${previousScene} to ${sceneName} in room ${roomId}`
+        );
       }
     );
 
@@ -398,22 +368,25 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
 
         // Find all other players in the same scene
         const playersInScene = Object.values(room.players).filter(
-          (player) => player.id !== playerId && player.currentScene === sceneName
+          (player) =>
+            player.id !== playerId && player.currentScene === sceneName
         );
 
         // Send the list of players in this scene to the entering player
         socket.emit("playersInScene", {
           sceneName,
-          players: playersInScene
+          players: playersInScene,
         });
 
         // Notify other players in the scene that a new player has entered
         socket.to(roomId).emit("playerEnteredScene", {
           sceneName,
-          player: room.players[playerId]
+          player: room.players[playerId],
         });
 
-        console.log(`Player ${playerId} entered scene ${sceneName}, found ${playersInScene.length} other players`);
+        console.log(
+          `Player ${playerId} entered scene ${sceneName}, found ${playersInScene.length} other players`
+        );
       }
     );
 
@@ -422,7 +395,7 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
       console.log(`Socket ${socket.id} disconnected. Reason: ${reason}`);
       activeConnections.delete(socket.id);
       console.log(`Total active connections: ${activeConnections.size}`);
-      
+
       // Find and remove player from any room they were in
       Object.keys(gameRooms).forEach((roomId) => {
         const room = gameRooms[roomId];
@@ -460,26 +433,33 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
         roomId,
         groupId,
         message,
+        username,
+        playerId,
       }: {
         roomId: string;
         groupId: string;
         message: string;
+        username?: string;
+        playerId?: string;
       }) => {
         const room = gameRooms[roomId];
         if (!room || !room.players[socket.id]) return;
 
         const player = room.players[socket.id];
+        const senderPlayerId = playerId || socket.id;
+        const senderUsername = username || player.username;
+
+        console.log(
+          `Chat message received from ${senderUsername} (${senderPlayerId}) in group ${groupId}`
+        );
 
         // Broadcast chat message to players in the same room
-        // The client will filter by groupId
-        socket.to(roomId).emit("chatMessageReceived", {
-          id: Date.now().toString(),
-          playerId: socket.id,
-          username: player.username,
-          sprite: player.sprite,
+        // Using chatMessage event name to match client listeners
+        socket.to(roomId).emit("chatMessage", {
+          playerId: senderPlayerId,
+          username: senderUsername,
           message,
-          timestamp: Date.now(),
-          groupId,
+          groupId, // Include groupId so clients can filter
         });
       }
     );

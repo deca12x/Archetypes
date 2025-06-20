@@ -12,33 +12,21 @@ export class TourScene extends Scene {
 
   private readonly tourSteps = [
     {
-      text: "Welcome to Archetypes! Let's learn how to play!",
-      position: { x: 5, y: 5 }
+      text: "Welcome to the Collective Unconscious! Don't lose yourself!",
+      position: { x: 5, y: 5 },
     },
     {
-      text: "MOVEMENT: Use WASD or Arrow Keys to move your character around",
-      position: { x: 10, y: 10 }
-    },
-    {
-      text: "CHARACTER SWAP: Press P to switch between different characters\nEach character has unique abilities!",
-      position: { x: 15, y: 15 }
-    },
-    {
-      text: "ATTACK: Press X to attack and interact with the world",
-      position: { x: 20, y: 20 }
-    },
-    {
-      text: "MUSIC: Press M to toggle the game music on/off",
-      position: { x: 25, y: 25 }
+      text: "MOVEMENT: Use Arrow Keys to move your character around",
+      position: { x: 10, y: 10 },
     },
     {
       text: "MENU: Press ESC to open the game menu",
-      position: { x: 30, y: 30 }
+      position: { x: 30, y: 30 },
     },
     {
       text: "Ready to begin your adventure? Press SPACE to start!",
-      position: { x: 35, y: 35 }
-    }
+      position: { x: 35, y: 35 },
+    },
   ];
 
   constructor() {
@@ -53,8 +41,11 @@ export class TourScene extends Scene {
   preload() {
     console.log("TourScene preload started");
     // Load the map
-    this.load.tilemapTiledJSON(Maps.DESERT_GATE, '/assets/maps/desert_gate.json');
-    
+    this.load.tilemapTiledJSON(
+      Maps.DESERT_GATE,
+      "/assets/maps/desert_gate.json"
+    );
+
     // Load tilesets
     Object.values(Tilesets).forEach((tileset) => {
       this.load.image(tileset, `/assets/tilesets/${tileset}.png`);
@@ -64,10 +55,10 @@ export class TourScene extends Scene {
 
   create() {
     console.log("TourScene create started");
-    
+
     // Create the map
     this.map = this.make.tilemap({ key: Maps.DESERT_GATE });
-    
+
     // Add tilesets
     const all_tilesets = Object.values(Tilesets).reduce(
       (acc: Phaser.Tilemaps.Tileset[], value: Tilesets) => {
@@ -88,7 +79,7 @@ export class TourScene extends Scene {
       .forEach((layer) => {
         this.map.createLayer(layer, all_tilesets);
       });
-    
+
     // Add semi-transparent background
     const bg = this.add.rectangle(
       this.cameras.main.width / 2,
@@ -96,7 +87,7 @@ export class TourScene extends Scene {
       this.cameras.main.width,
       this.cameras.main.height,
       0x000000,
-      0.7  // Increased opacity for better text visibility
+      0.7 // Increased opacity for better text visibility
     );
     bg.setScrollFactor(0);
     bg.setDepth(1000); // Ensure background is on top
@@ -109,37 +100,41 @@ export class TourScene extends Scene {
     this.highlight.setDepth(1001); // Ensure highlight is above background
 
     // Add tour text with improved visibility
-    this.tourText = this.add.text(
-      this.cameras.main.width / 2,
-      this.cameras.main.height / 2 - 50,
-      this.tourSteps[0].text,
-      {
-        fontSize: '28px',  // Increased font size
-        color: '#ffffff',
-        align: 'center',
-        fontFamily: 'Arial',
-        wordWrap: { width: this.cameras.main.width - 100 },
-        stroke: '#000000',  // Added text stroke for better visibility
-        strokeThickness: 4
-      }
-    ).setOrigin(0.5);
+    this.tourText = this.add
+      .text(
+        this.cameras.main.width / 2,
+        this.cameras.main.height / 2 - 50,
+        this.tourSteps[0].text,
+        {
+          fontSize: "28px", // Increased font size
+          color: "#ffffff",
+          align: "center",
+          fontFamily: "Arial",
+          wordWrap: { width: this.cameras.main.width - 100 },
+          stroke: "#000000", // Added text stroke for better visibility
+          strokeThickness: 4,
+        }
+      )
+      .setOrigin(0.5);
     this.tourText.setDepth(1002); // Ensure text is above highlight
     console.log("Tour text added");
 
     // Add continue text with improved visibility
-    this.continueText = this.add.text(
-      this.cameras.main.width / 2,
-      this.cameras.main.height / 2 + 50,
-      "Press SPACE to continue",
-      {
-        fontSize: '24px',  // Increased font size
-        color: '#ffffff',
-        align: 'center',
-        fontFamily: 'Arial',
-        stroke: '#000000',  // Added text stroke for better visibility
-        strokeThickness: 3
-      }
-    ).setOrigin(0.5);
+    this.continueText = this.add
+      .text(
+        this.cameras.main.width / 2,
+        this.cameras.main.height / 2 + 50,
+        "Press SPACE to continue",
+        {
+          fontSize: "24px", // Increased font size
+          color: "#ffffff",
+          align: "center",
+          fontFamily: "Arial",
+          stroke: "#000000", // Added text stroke for better visibility
+          strokeThickness: 3,
+        }
+      )
+      .setOrigin(0.5);
     this.continueText.setDepth(1002); // Ensure text is above highlight
     console.log("Continue text added");
 
@@ -149,13 +144,15 @@ export class TourScene extends Scene {
       alpha: 0,
       duration: 1000,
       yoyo: true,
-      repeat: -1
+      repeat: -1,
     });
 
     // Listen for space key to advance tour
-    this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE).on('down', () => {
-      this.nextStep();
-    });
+    this.input.keyboard
+      ?.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE)
+      .on("down", () => {
+        this.nextStep();
+      });
 
     // Set camera bounds to map size
     this.cameras.main.setBounds(
@@ -173,7 +170,7 @@ export class TourScene extends Scene {
   private showStep(stepIndex: number) {
     console.log("Showing tour step:", stepIndex);
     const step = this.tourSteps[stepIndex];
-    
+
     // Update text
     this.tourText.setText(step.text);
     console.log("Updated tour text:", step.text);
@@ -183,7 +180,7 @@ export class TourScene extends Scene {
       step.position.x * 32, // Convert tile position to pixels
       step.position.y * 32,
       1000,
-      'Power2'
+      "Power2"
     );
 
     // Show highlight at position
@@ -200,14 +197,14 @@ export class TourScene extends Scene {
       scaleY: 1.2,
       duration: 1000,
       yoyo: true,
-      repeat: -1
+      repeat: -1,
     });
   }
 
   private nextStep() {
     console.log("Moving to next tour step");
     this.currentStep++;
-    
+
     if (this.currentStep < this.tourSteps.length) {
       // Show next tour step
       this.showStep(this.currentStep);
@@ -217,4 +214,4 @@ export class TourScene extends Scene {
       this.scene.start("WorldScene");
     }
   }
-} 
+}

@@ -6,12 +6,12 @@ export class TutorialScene extends Scene {
   private currentStep: number = 0;
   private readonly tutorialSteps = [
     "Welcome to Archetypes!",
-    "Use WASD or Arrow Keys to move",
+    "Arrow Keys to move",
     "Press P to swap between characters",
     "Press X to attack",
     "Press M to toggle music",
     "Press ESC to open menu",
-    "Let's begin your adventure!"
+    "Let's begin your adventure!",
   ];
 
   constructor() {
@@ -39,36 +39,40 @@ export class TutorialScene extends Scene {
     console.log("Background added");
 
     // Add tutorial text
-    this.tutorialText = this.add.text(
-      this.cameras.main.width / 2,
-      this.cameras.main.height / 2 - 50,
-      this.tutorialSteps[0],
-      {
-        fontSize: '32px',
-        color: '#ffffff',
-        align: 'center',
-        fontFamily: 'Arial',
-        stroke: '#000000',
-        strokeThickness: 4
-      }
-    ).setOrigin(0.5);
+    this.tutorialText = this.add
+      .text(
+        this.cameras.main.width / 2,
+        this.cameras.main.height / 2 - 50,
+        this.tutorialSteps[0],
+        {
+          fontSize: "32px",
+          color: "#ffffff",
+          align: "center",
+          fontFamily: "Arial",
+          stroke: "#000000",
+          strokeThickness: 4,
+        }
+      )
+      .setOrigin(0.5);
     this.tutorialText.setDepth(1001);
     console.log("Tutorial text added");
 
     // Add continue text
-    this.continueText = this.add.text(
-      this.cameras.main.width / 2,
-      this.cameras.main.height / 2 + 50,
-      "Press SPACE to continue",
-      {
-        fontSize: '24px',
-        color: '#ffffff',
-        align: 'center',
-        fontFamily: 'Arial',
-        stroke: '#000000',
-        strokeThickness: 3
-      }
-    ).setOrigin(0.5);
+    this.continueText = this.add
+      .text(
+        this.cameras.main.width / 2,
+        this.cameras.main.height / 2 + 50,
+        "Press SPACE to continue",
+        {
+          fontSize: "24px",
+          color: "#ffffff",
+          align: "center",
+          fontFamily: "Arial",
+          stroke: "#000000",
+          strokeThickness: 3,
+        }
+      )
+      .setOrigin(0.5);
     this.continueText.setDepth(1001);
     console.log("Continue text added");
 
@@ -78,28 +82,33 @@ export class TutorialScene extends Scene {
       alpha: 0,
       duration: 1000,
       yoyo: true,
-      repeat: -1
+      repeat: -1,
     });
 
     // Listen for space key to advance tutorial
-    this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE).on('down', () => {
-      this.nextStep();
-    });
+    this.input.keyboard
+      ?.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE)
+      .on("down", () => {
+        this.nextStep();
+      });
     console.log("TutorialScene create completed");
   }
 
   private nextStep() {
     console.log("Moving to next tutorial step");
     this.currentStep++;
-    
+
     if (this.currentStep < this.tutorialSteps.length) {
       // Show next tutorial step
       this.tutorialText.setText(this.tutorialSteps[this.currentStep]);
-      console.log("Updated tutorial text:", this.tutorialSteps[this.currentStep]);
+      console.log(
+        "Updated tutorial text:",
+        this.tutorialSteps[this.currentStep]
+      );
     } else {
       // End tutorial and start tour
       console.log("TutorialScene: Transitioning to Tour");
       this.scene.start("Tour");
     }
   }
-} 
+}

@@ -156,6 +156,7 @@ export default class WorldScene extends Scene {
   private adjacentPlayers: Set<string> = new Set();
   private backgroundMusic?: Phaser.Sound.BaseSound;
   private missionCard: MissionCard | null = null;
+  private assignedSprite: string = "wizard"; // Default sprite
 
   constructor() {
     super({ key: "WorldScene" });
@@ -578,28 +579,18 @@ export default class WorldScene extends Scene {
       return;
     }
 
-    let animationKey = "rogue_walk_down"; // default
+    const dirMap = {
+      [Direction.UP]: "up",
+      [Direction.DOWN]: "down",
+      [Direction.LEFT]: "left",
+      [Direction.RIGHT]: "right",
+    };
 
-    switch (direction) {
-      case Direction.UP:
-        animationKey = "rogue_walk_up";
-        break;
-      case Direction.DOWN:
-        animationKey = "rogue_walk_down";
-        break;
-      case Direction.LEFT:
-        animationKey = "rogue_walk_left";
-        break;
-      case Direction.RIGHT:
-        animationKey = "rogue_walk_right";
-        break;
-    }
-
-    console.log("Playing walking animation:", animationKey);
-    try {
-      this.player.anims.play(animationKey, true);
-    } catch (error) {
-      console.error("Error playing walking animation:", error);
+    const dir = dirMap[direction];
+    if (dir) {
+      // Use the assigned sprite for animations
+      const animKey = `${this.assignedSprite}_walk_${dir}`;
+      this.player.anims.play(animKey, true);
     }
   }
 
@@ -619,28 +610,18 @@ export default class WorldScene extends Scene {
       return;
     }
 
-    let animationKey = "rogue_idle_down"; // default
+    const dirMap = {
+      [Direction.UP]: "up",
+      [Direction.DOWN]: "down",
+      [Direction.LEFT]: "left",
+      [Direction.RIGHT]: "right",
+    };
 
-    switch (direction) {
-      case Direction.UP:
-        animationKey = "rogue_idle_up";
-        break;
-      case Direction.DOWN:
-        animationKey = "rogue_idle_down";
-        break;
-      case Direction.LEFT:
-        animationKey = "rogue_idle_left";
-        break;
-      case Direction.RIGHT:
-        animationKey = "rogue_idle_right";
-        break;
-    }
-
-    console.log("Playing idle animation:", animationKey);
-    try {
-      this.player.anims.play(animationKey, true);
-    } catch (error) {
-      console.error("Error playing idle animation:", error);
+    const dir = dirMap[direction];
+    if (dir) {
+      // Use the assigned sprite for animations
+      const animKey = `${this.assignedSprite}_idle_${dir}`;
+      this.player.anims.play(animKey, true);
     }
   }
 
@@ -924,8 +905,9 @@ export default class WorldScene extends Scene {
       const startX = mapWidth / 2;
       const startY = mapHeight - 200; // 200 pixels from bottom
 
-      // Create player sprite at the correct starting position
-      this.player = this.add.sprite(startX, startY, "rogue");
+      // Create player sprite with the assigned sprite (default to wizard if not set)
+      console.log(`Creating player with sprite: ${this.assignedSprite}`);
+      this.player = this.add.sprite(startX, startY, this.assignedSprite);
       this.player.setOrigin(0.5, 0.5);
       this.player.setScale(1);
 
@@ -935,6 +917,7 @@ export default class WorldScene extends Scene {
       console.log("Player sprite created at:", {
         x: this.player.x,
         y: this.player.y,
+        sprite: this.assignedSprite,
       });
 
       // Set up camera to follow player
@@ -961,6 +944,10 @@ export default class WorldScene extends Scene {
         console.log("Room created:", data);
         this.roomId = data.roomId;
         this.playerId = data.playerId;
+
+        // Store the assigned sprite
+        this.assignedSprite = data.sprite;
+        console.log(`Assigned sprite: ${this.assignedSprite}`);
 
         // Initialize chat service with correct player ID
         chatService.initialize(
@@ -997,6 +984,10 @@ export default class WorldScene extends Scene {
         this.roomId = data.roomId;
         this.playerId = data.playerId;
 
+        // Store the assigned sprite
+        this.assignedSprite = data.sprite;
+        console.log(`Assigned sprite: ${this.assignedSprite}`);
+
         // Initialize chat service with correct player ID
         chatService.initialize(
           this.socket,
@@ -1023,7 +1014,8 @@ export default class WorldScene extends Scene {
             this.addRemotePlayer(
               player.id,
               { username: player.username },
-              { x: player.x, y: player.y }
+              { x: player.x, y: player.y },
+              player.sprite // Pass the player's sprite
             );
 
             // Update their position if we have GridEngine ready
@@ -1047,7 +1039,8 @@ export default class WorldScene extends Scene {
                   remotePlayer.setPosition(worldX, worldY);
                   this.updateRemotePlayerAnimation(
                     remoteCharId,
-                    player.direction as Direction
+                    player.direction as Direction,
+                    player.sprite
                   );
                 }
               }
@@ -1063,6 +1056,7 @@ export default class WorldScene extends Scene {
             playerId: this.socket.id,
             position: currentPos,
             facingDirection: this.gridEngine.getFacingDirection("player"),
+            sprite: this.assignedSprite, // Include our sprite
           });
         }
       }
@@ -1239,7 +1233,8 @@ export default class WorldScene extends Scene {
   addRemotePlayer(
     playerId: string,
     playerData: { username: string },
-    initialPosition?: { x: number; y: number }
+    initialPosition?: { x: number; y: number },
+    sprite?: string // Add sprite parameter
   ) {
     if (!this.player || !this.gridEngine) return;
 
@@ -1254,7 +1249,9 @@ export default class WorldScene extends Scene {
       playerId,
       playerData,
       "initial position:",
-      initialPosition
+      initialPosition,
+      "sprite:",
+      sprite
     );
 
     // Use provided position or default to player's position
@@ -1275,13 +1272,16 @@ export default class WorldScene extends Scene {
     const worldX = Math.round(startPos.x * 32 + 16);
     const worldY = Math.round(startPos.y * 32 + 16);
 
+    // Use the provided sprite or default to wizard
+    const playerSprite = sprite || "wizard";
+
     // Create remote player sprite
-    const remotePlayer = this.add.sprite(worldX, worldY, "rogue");
+    const remotePlayer = this.add.sprite(worldX, worldY, playerSprite);
     remotePlayer.setScale(1);
     remotePlayer.setOrigin(0.5, 0.5);
 
     // Set initial idle animation
-    remotePlayer.anims.play("rogue_idle_down", true);
+    remotePlayer.anims.play(`${playerSprite}_idle_down`, true);
 
     this.remotePlayers.set(playerId, remotePlayer);
 
@@ -1292,7 +1292,9 @@ export default class WorldScene extends Scene {
         "Adding remote player to GridEngine:",
         remoteCharId,
         "at position:",
-        startPos
+        startPos,
+        "with sprite:",
+        playerSprite
       );
       this.gridEngine.addCharacter({
         id: remoteCharId,
@@ -1546,7 +1548,8 @@ export default class WorldScene extends Scene {
       this.gridEngine.turnTowards(remoteCharId, toDirection(facingDirection));
       this.updateRemotePlayerAnimation(
         remoteCharId,
-        toDirection(facingDirection)
+        toDirection(facingDirection),
+        this.assignedSprite
       );
 
       console.log(
@@ -1563,8 +1566,13 @@ export default class WorldScene extends Scene {
     }
   }
 
-  updateRemotePlayerAnimation(charId: string, direction: Direction) {
-    const remotePlayer = this.remotePlayers.get(charId.replace("remote_", ""));
+  updateRemotePlayerAnimation(
+    charId: string,
+    direction: Direction,
+    sprite?: string
+  ) {
+    const remotePlayerId = charId.replace("remote_", "");
+    const remotePlayer = this.remotePlayers.get(remotePlayerId);
     if (!remotePlayer) {
       console.warn(
         "🌍 updateRemotePlayerAnimation: Remote player not found for charId:",
@@ -1581,11 +1589,16 @@ export default class WorldScene extends Scene {
       return;
     }
 
+    // Get the sprite name for this remote player
+    // If not provided, try to get it from the player data in the game room
+    const playerSprite = sprite || "wizard";
+
+    // Create animation map based on the sprite
     const animMap = {
-      up: "rogue_idle_up",
-      down: "rogue_idle_down",
-      left: "rogue_idle_left",
-      right: "rogue_idle_right",
+      up: `${playerSprite}_idle_up`,
+      down: `${playerSprite}_idle_down`,
+      left: `${playerSprite}_idle_left`,
+      right: `${playerSprite}_idle_right`,
     };
 
     const animName = animMap[direction];

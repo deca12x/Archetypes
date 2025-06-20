@@ -1,5 +1,6 @@
 import { Server as SocketIOServer } from "socket.io";
 import type { Server as HTTPServer } from "http";
+import { Sprites } from "../game/constants/assets";
 
 // Player and room type definitions
 export interface Player {
@@ -33,7 +34,8 @@ export function generateRoomCode(): string {
 
 // Get all available character sprites
 function getAllSprites(): string[] {
-  return ["wizard", "explorer", "hero", "ruler"];
+  // Return all sprite values from the Sprites enum
+  return Object.values(Sprites);
 }
 
 // Initialize Socket.io server
@@ -234,18 +236,6 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
         socket.to(roomId).emit("playerJoined", {
           playerId: socket.id,
           player: room.players[socket.id],
-        });
-
-        // Send current positions of existing players to the new player
-        Object.keys(room.players).forEach((existingPlayerId) => {
-          if (existingPlayerId !== socket.id) {
-            const existingPlayer = room.players[existingPlayerId];
-            socket.emit("playerPosition", {
-              playerId: existingPlayerId,
-              position: { x: existingPlayer.x, y: existingPlayer.y },
-              facingDirection: existingPlayer.direction,
-            });
-          }
         });
 
         console.log(

@@ -97,18 +97,8 @@ export default class BootScene extends Scene {
       this.load.image("scene3", "/assets/tilesets/scene3.png");
       this.load.image("scene4", "/assets/tilesets/desert_remains.png");
 
-      // Load player sprite (wizard)
-      this.load.spritesheet("player", "/assets/images/characters/wizard.png", {
-        frameWidth: 48,
-        frameHeight: 48,
-      });
-
-      // Load rogue sprite sheet
-      console.log("Loading rogue sprite...");
-      this.load.spritesheet("rogue", "assets/sprites/rogue_sheet.webp", {
-        frameWidth: 48,
-        frameHeight: 48,
-      });
+      // Load all character sprites
+      this.loadCharacterSprites();
 
       // Load background music
       console.log("Loading background music...");
@@ -126,6 +116,25 @@ export default class BootScene extends Scene {
     }
   }
 
+  loadCharacterSprites(): void {
+    console.log("Loading character sprites...");
+    // Get all sprite names from the Sprites enum
+    const spriteNames = Object.values(Sprites);
+
+    // Load each sprite
+    spriteNames.forEach((sprite) => {
+      console.log(`Loading ${sprite} sprite...`);
+      this.load.spritesheet(
+        sprite,
+        `/assets/images/characters/${sprite}.webp`,
+        {
+          frameWidth: 48,
+          frameHeight: 48,
+        }
+      );
+    });
+  }
+
   loadMaps(): void {
     // No additional maps needed
   }
@@ -137,84 +146,63 @@ export default class BootScene extends Scene {
   create(): void {
     console.log("BootScene create started");
     try {
-      // Create animations for the player
-      this.anims.create({
-        key: "player_idle",
-        frames: this.anims.generateFrameNumbers("player", { start: 0, end: 3 }),
-        frameRate: 8,
-        repeat: -1,
-      });
-
-      this.anims.create({
-        key: "player_walk",
-        frames: this.anims.generateFrameNumbers("player", {
-          start: 4,
-          end: 11,
-        }),
-        frameRate: 12,
-        repeat: -1,
-      });
-
-      // Create rogue animations
-      this.anims.create({
-        key: "rogue_idle_down",
-        frames: this.anims.generateFrameNumbers("rogue", { start: 9, end: 9 }),
-        frameRate: 10,
-        repeat: -1,
-      });
-
-      this.anims.create({
-        key: "rogue_idle_up",
-        frames: this.anims.generateFrameNumbers("rogue", { start: 0, end: 0 }),
-        frameRate: 10,
-        repeat: -1,
-      });
-
-      this.anims.create({
-        key: "rogue_idle_left",
-        frames: this.anims.generateFrameNumbers("rogue", { start: 6, end: 6 }),
-        frameRate: 10,
-        repeat: -1,
-      });
-
-      this.anims.create({
-        key: "rogue_idle_right",
-        frames: this.anims.generateFrameNumbers("rogue", { start: 3, end: 3 }),
-        frameRate: 10,
-        repeat: -1,
-      });
-
-      // Walking animations for each direction
-      this.anims.create({
-        key: "rogue_walk_up",
-        frames: this.anims.generateFrameNumbers("rogue", { start: 0, end: 2 }),
-        frameRate: 10,
-        repeat: -1,
-      });
-
-      this.anims.create({
-        key: "rogue_walk_right",
-        frames: this.anims.generateFrameNumbers("rogue", { start: 3, end: 5 }),
-        frameRate: 10,
-        repeat: -1,
-      });
-
-      this.anims.create({
-        key: "rogue_walk_left",
-        frames: this.anims.generateFrameNumbers("rogue", { start: 6, end: 8 }),
-        frameRate: 10,
-        repeat: -1,
-      });
-
-      this.anims.create({
-        key: "rogue_walk_down",
-        frames: this.anims.generateFrameNumbers("rogue", { start: 9, end: 11 }),
-        frameRate: 10,
-        repeat: -1,
-      });
+      // Create animations for all character sprites
+      this.createCharacterAnimations();
       console.log("Animations created successfully");
     } catch (error) {
       console.error("Error in BootScene create:", error);
     }
+  }
+
+  createCharacterAnimations(): void {
+    // Get all sprite names from the Sprites enum
+    const spriteNames = Object.values(Sprites);
+
+    // Create animations for each sprite
+    spriteNames.forEach((sprite) => {
+      console.log(`Creating animations for ${sprite}...`);
+
+      // Create idle animation
+      this.anims.create({
+        key: `${sprite}_idle`,
+        frames: this.anims.generateFrameNumbers(sprite, { start: 0, end: 3 }),
+        frameRate: 8,
+        repeat: -1,
+      });
+
+      // Create walk animation
+      this.anims.create({
+        key: `${sprite}_walk`,
+        frames: this.anims.generateFrameNumbers(sprite, { start: 4, end: 11 }),
+        frameRate: 12,
+        repeat: -1,
+      });
+
+      // Create directional animations
+      const directions = ["up", "right", "left", "down"];
+      directions.forEach((direction, index) => {
+        // Idle animation for each direction
+        this.anims.create({
+          key: `${sprite}_idle_${direction}`,
+          frames: this.anims.generateFrameNumbers(sprite, {
+            start: index * 3,
+            end: index * 3,
+          }),
+          frameRate: 10,
+          repeat: -1,
+        });
+
+        // Walking animation for each direction
+        this.anims.create({
+          key: `${sprite}_walk_${direction}`,
+          frames: this.anims.generateFrameNumbers(sprite, {
+            start: index * 3,
+            end: index * 3 + 2,
+          }),
+          frameRate: 10,
+          repeat: -1,
+        });
+      });
+    });
   }
 }

@@ -4,7 +4,7 @@ import WorldScene from "./scenes/WorldScene";
 import BootScene from "./scenes/BootScene";
 import Scene3 from "./scenes/Scene3";
 import Scene4 from "./scenes/Scene4";
-import { TutorialScene }from "./scenes/TutorialScene";
+import { TutorialScene } from "./scenes/TutorialScene";
 import { TourScene } from "./scenes/TourScene";
 import { PauseScene } from "./scenes/PauseScene";
 
@@ -15,14 +15,14 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
   height: 600,
   pixelArt: true,
   scene: [
-    BootScene, 
-    IntroScene, 
-    WorldScene, 
-    Scene3, 
-    Scene4, 
-    TutorialScene, 
-    TourScene, 
-    PauseScene
+    BootScene,
+    IntroScene,
+    WorldScene,
+    Scene3,
+    Scene4,
+    TutorialScene,
+    TourScene,
+    PauseScene,
   ],
   scale: {
     mode: Phaser.Scale.FIT,
@@ -49,9 +49,9 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
       const assets = [
         { key: "desert_gate1", path: "/assets/tilesets/desert_gate1.webp" },
         { key: "desertgate", path: "/assets/maps/desertgate.json" },
-        { key: "wizard", path: "/assets/characters/wizard.png" },
+        // { key: "wizard", path: "/assets/characters/wizard.png" },
       ];
       return assets;
     },
   },
-}; 
+};

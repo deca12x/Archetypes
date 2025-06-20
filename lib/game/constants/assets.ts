@@ -1,6 +1,16 @@
 export enum Sprites {
   WIZARD = "wizard",
-  ROGUE = "rogue",
+  EXPLORER = "explorer",
+  HERO = "hero",
+  RULER = "ruler",
+  ARTIST = "artist",
+  CAREGIVER = "caregiver",
+  COMMON_MAN = "commonMan",
+  INNOCENT = "innocent",
+  JOKER = "joker",
+  LOVER = "lover",
+  OUTLAW = "outlaw",
+  SAGE = "sage",
 }
 
 export enum Tilesets {

@@ -403,13 +403,14 @@ export default class Scene3 extends Scene {
       const startX = mapWidth / 2;
       const startY = mapHeight - 100;
 
-      // Create player sprite at the correct starting position
-      this.player = this.add.sprite(startX, startY, "rogue");
+      // Create player sprite with the assigned sprite
+      this.player = this.add.sprite(startX, startY, this.sprite);
       this.player.setOrigin(0.5, 0.5);
       this.player.setScale(1);
 
-      // Set initial idle animation
-      this.player.anims.play("rogue_idle_down", true);
+      // Set initial idle animation using the correct sprite
+      const animKey = `${this.sprite}_idle_down`;
+      this.player.anims.play(animKey, true);
 
       // Set up camera to follow player
       this.cameras.main.startFollow(this.player, true);
@@ -419,6 +420,7 @@ export default class Scene3 extends Scene {
       console.log("Scene3 player sprite created at:", {
         x: this.player.x,
         y: this.player.y,
+        sprite: this.sprite,
       });
     } catch (error) {
       console.error("Error in initializePlayer:", error);
@@ -641,28 +643,23 @@ export default class Scene3 extends Scene {
       return;
     }
 
-    let animationKey = "rogue_walk_down"; // default
+    const dirMap = {
+      [Direction.UP]: "up",
+      [Direction.DOWN]: "down",
+      [Direction.LEFT]: "left",
+      [Direction.RIGHT]: "right",
+    };
 
-    switch (direction) {
-      case Direction.UP:
-        animationKey = "rogue_walk_up";
-        break;
-      case Direction.DOWN:
-        animationKey = "rogue_walk_down";
-        break;
-      case Direction.LEFT:
-        animationKey = "rogue_walk_left";
-        break;
-      case Direction.RIGHT:
-        animationKey = "rogue_walk_right";
-        break;
-    }
-
-    console.log("🎬 Playing walking animation:", animationKey);
-    try {
-      this.player.anims.play(animationKey, true);
-    } catch (error) {
-      console.error("🎬 Error playing walking animation:", error);
+    const dir = dirMap[direction];
+    if (dir) {
+      // Use the sprite property instead of hardcoded "rogue"
+      const animKey = `${this.sprite}_walk_${dir}`;
+      console.log("🎬 Playing walking animation:", animKey);
+      try {
+        this.player.anims.play(animKey, true);
+      } catch (error) {
+        console.error("🎬 Error playing walking animation:", error);
+      }
     }
   }
 
@@ -681,28 +678,23 @@ export default class Scene3 extends Scene {
       return;
     }
 
-    let animationKey = "rogue_idle_down"; // default
+    const dirMap = {
+      [Direction.UP]: "up",
+      [Direction.DOWN]: "down",
+      [Direction.LEFT]: "left",
+      [Direction.RIGHT]: "right",
+    };
 
-    switch (direction) {
-      case Direction.UP:
-        animationKey = "rogue_idle_up";
-        break;
-      case Direction.DOWN:
-        animationKey = "rogue_idle_down";
-        break;
-      case Direction.LEFT:
-        animationKey = "rogue_idle_left";
-        break;
-      case Direction.RIGHT:
-        animationKey = "rogue_idle_right";
-        break;
-    }
-
-    console.log("🎬 Playing idle animation:", animationKey);
-    try {
-      this.player.anims.play(animationKey, true);
-    } catch (error) {
-      console.error("🎬 Error playing idle animation:", error);
+    const dir = dirMap[direction];
+    if (dir) {
+      // Use the sprite property instead of hardcoded "rogue"
+      const animKey = `${this.sprite}_idle_${dir}`;
+      console.log("🎬 Playing idle animation:", animKey);
+      try {
+        this.player.anims.play(animKey, true);
+      } catch (error) {
+        console.error("🎬 Error playing idle animation:", error);
+      }
     }
   }
 
